@@ -1,0 +1,10 @@
+const fs=require('fs');
+const sp='C:/Users/HPLAPT~1/AppData/Local/Temp/claude/c--Users-HP-LAPTOP-Downloads-koforlink/696e98c8-2ba6-4753-9bcc-7e024a0265e0/scratchpad';
+let s=fs.readFileSync(sp+'/scripts/e2e.js','utf8');
+s=s.replace("require(path.join(__dirname, '..', 'tools', 'node', 'node_modules', 'playwright-core'))",`require(${JSON.stringify(sp+'/tools/node/node_modules/playwright-core')})`);
+s=s.replace(/function codeFromLog\(email\) \{[\s\S]*?\n\}/,`function codeFromLog(email) {\n  const text=fs.readFileSync(LOG,'utf8');\n  const start=text.lastIndexOf('to='+email+' ');\n  const block=text.slice(start,start+600);\n  const match=block.match(/code is (\\d{6})/);\n  if(start<0 || !match)throw new Error('No code in server log for '+email);\n  return match[1];\n}`);
+s=s.replace("    await f.locator('[name=professionalTitle]').fill('QA Engineer');","    await f.locator('[name=professionalTitle]').fill('QA Engineer');\n    await f.locator('[name=role]').selectOption('Employer');");
+s=s.replace("  global.page = page;","  global.page = page;\n  page.setDefaultTimeout(10000);");
+s=s.replace(/const code = \(\(\) => \{ const t = fs\.readFileSync\(LOG, 'utf8'\)[^\n]+/,"const code = codeFromLog(me.email);");
+s=s.replace("  await browser.close();", "  await context.close();\n  await browser.close();\n  fs.writeFileSync(path.join(SHOTS,'..','e2e-results.json'),JSON.stringify({results,consoleErrors,badResponses},null,2));");
+fs.writeFileSync('tools/frontend-port/e2e.cjs',s);
