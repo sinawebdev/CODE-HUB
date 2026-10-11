@@ -59,7 +59,7 @@ The provider supplies `$IP` and `$PORT`. Verify resource use, assets, database-b
 
 The existing **koforlink** account was verified on **Free** (1 GB disk, 256 MB RAM, 0.25 CPU). The existing site is `koforlink.alwaysdata.net` and still runs its default PHP configuration.
 
-The empty PostgreSQL 17 database **koforlink_app** has been created at `postgresql-koforlink.alwaysdata.net`, with the existing `koforlink` database user. Its 42 application tables have **not** yet been migrated. The existing SSH user is `koforlink` at `ssh-koforlink.alwaysdata.net`. The existing sender address is `koforlink@alwaysdata.net`.
+The PostgreSQL 17 database **koforlink_app** has been created at `postgresql-koforlink.alwaysdata.net`, with the existing `koforlink` database user. All **42 application tables** have now been migrated to revision `5c77d694ca7a`; Alembic reports no pending schema changes and the database readiness check passes. The existing SSH user is `koforlink` at `ssh-koforlink.alwaysdata.net`. The existing sender address is `koforlink@alwaysdata.net`.
 
 `deploy/alwaysdata-prepare.sh` installs the server, checks production configuration, runs migrations/readiness, and creates the first administrator without seeding public demo accounts. Initial administrator details go to private, Git-ignored `backend/.first-admin.txt`, not deployment output.
 
@@ -67,9 +67,13 @@ The empty PostgreSQL 17 database **koforlink_app** has been created at `postgres
 
 SSH authentication now succeeds, and source commit `8d3c91a` has been uploaded to `/home/koforlink/koforlink`. Python 3.12 and the backend packages are installed. The installed runtime passed **104 isolated backend tests** using in-memory SQLite, an empty SMTP host and explicit test URL/pool defaults; these tests did not alter PostgreSQL or send email. Four initial assertions used production URL/pool settings, and passed after the test environment was fully isolated.
 
-PostgreSQL rejected authentication using the SSH password. Its separate database-user password is needed before migration can proceed. Supply it with `--database-password-file`; this explicitly replaces only `DATABASE_URL` in an existing private `.env` and retains the signing secret and other settings.
+PostgreSQL uses a separate database-user password. Authentication now succeeds using the owner's private database-password file. The publisher's `--database-password-file` explicitly replaces only `DATABASE_URL` in an existing private `.env` and retains the signing secret and other settings.
 
-SSH preparation checks database schema/revision, media writability and SMTP TLS connectivity. It does **not** send email or switch the public site. Migrations, actual email delivery, public-site switching, idle behavior and hosted-browser acceptance remain pending. The Chrome administration connection stopped responding; the in-app browser is waiting for the account owner's sign-in before site configuration can continue.
+SSH preparation passed database schema/revision, media writability and SMTP TLS connectivity. A first administrator was created without demo accounts; its generated sign-in details are saved in the private local `.validation/alwaysdata-admin.txt` file.
+
+A temporary Uvicorn server listening only on the hosting server's loopback interface passed real PostgreSQL-backed sign-in, post/reaction persistence, frontend asset delivery, and upload/data persistence across an app restart. Its measured resident memory was 106,280 KiB (about 104 MiB). The temporary post and upload were removed, the test session was revoked, and the temporary server was stopped. This is a point-in-time runtime check, not a load test or public-browser acceptance.
+
+Preparation does **not** send email or switch the public site. Actual email delivery, public-site switching, idle behavior and hosted-browser acceptance remain pending. The Chrome administration connection stopped responding; the in-app browser is waiting for the account owner's sign-in before site configuration can continue.
 
 ## Prepared deployment for a continuously running Linux VM
 
