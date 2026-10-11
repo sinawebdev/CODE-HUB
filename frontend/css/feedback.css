@@ -1,0 +1,41 @@
+/* Feedback stays visible at every viewport size, above dialogs and stories. */
+#toasts{top:max(20px,env(safe-area-inset-top));bottom:auto;right:auto;left:50%;transform:translateX(-50%);width:min(460px,calc(100% - 32px));max-width:none;z-index:420;max-height:calc(100dvh - 40px);overflow-y:auto;padding:3px;gap:12px;filter:drop-shadow(0 8px 20px rgb(16 35 25 / 14%))}
+#toasts .toast{display:flex;align-items:flex-start;gap:13px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:18px;padding:17px 12px 17px 18px;box-shadow:none;pointer-events:auto;animation:none;overflow-wrap:anywhere}
+.feedback-icon{width:36px;height:36px;flex:0 0 36px;border-radius:12px;display:grid;place-items:center;background:var(--brand-50);color:var(--brand)}
+#toasts .feedback-icon svg{width:19px;height:19px;margin:0}
+.toast.error .feedback-icon{color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,var(--surface))}
+.toast.warn .feedback-icon{color:var(--warn);background:var(--surface-2)}
+.feedback-copy{flex:1;min-width:0;padding-top:1px}
+.feedback-copy strong{font-size:13px;font-weight:700;line-height:1.6}
+.feedback-copy p{font-size:13px;line-height:1.6;color:var(--text-2);margin:3px 0 0}
+.feedback-dismiss{width:36px;min-width:36px;height:36px;border:0;border-radius:10px;background:transparent;color:var(--text-3);cursor:pointer;display:grid;place-items:center}
+.feedback-dismiss:hover{background:var(--surface-2);color:var(--text)}
+#toasts .feedback-dismiss svg{width:17px;height:17px;margin:0}
+.overlay{z-index:400}
+.modal.confirmation{max-width:440px}
+.confirmation .modal-head{border-bottom:0;padding:24px 26px 12px}
+.confirmation .modal-body{padding:12px 26px 28px;overflow-wrap:anywhere}
+.confirmation .modal-foot{padding:20px 26px;background:var(--surface-2)}
+.confirmation-mark{width:64px;height:64px;border-radius:22px;display:grid;place-items:center;background:var(--brand-50);color:var(--brand);margin-bottom:20px}
+.confirmation-mark svg{width:30px;height:30px}
+.confirmation-mark.danger{background:color-mix(in srgb,var(--danger) 12%,var(--surface));color:var(--danger)}
+.confirmation .btn-danger{color:var(--surface)}
+.confirmation-message{font-size:15px;line-height:1.8;color:var(--text-2)}
+.confirmation .field-hint{margin-top:12px;line-height:1.7}
+.post-action{position:relative}
+.action-particle{position:absolute;width:5px;height:5px;border-radius:50%;background:currentColor;pointer-events:none;margin:-2.5px;z-index:1}
+@media(max-width:480px){
+  #toasts{top:max(12px,env(safe-area-inset-top));width:calc(100% - 20px)}
+  #toasts .toast{padding:14px 8px 14px 14px;gap:10px;border-radius:16px}
+  .feedback-dismiss{width:44px;min-width:44px;height:44px}
+  .confirmation .modal-head{padding:22px 22px 10px}
+  .confirmation .modal-body{padding:10px 22px 24px}
+  .confirmation .modal-foot{padding:18px 22px}
+  .modal .row{grid-template-columns:minmax(0,1fr)}
+  .modal .input,.modal .select,.modal .textarea{font-size:16px;min-width:0}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important}
+  .overlay,.modal,.toast,.confirmation-mark{animation:none!important;transition:none!important}
+  .action-particle{display:none}
+}

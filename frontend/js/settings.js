@@ -1,8 +1,8 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
 import { shell } from './layout.js';
-import { $, $$, State, esc, setTheme, toast } from './core.js';
-import { doLogout } from './auth.js';
+import { $, $$, State, closeModal, esc, openModal, setTheme, showCompletion, toast } from './core.js';
+import { doLogout, renderLogin } from './auth.js';
 
 function renderSettings(){
   shell('settings', { wide:true, noRail:true });
@@ -41,14 +41,23 @@ function renderSettings(){
     if (!cur || !np) { toast('Fill in both fields', 'error'); return; }
     if (np.length < 8) { toast('New password must be 8+ characters', 'error'); return; }
     api.changePassword(cur, np).then(function(){
-      toast('Password updated - please sign in again');
-      setTimeout(function(){ api.clearTokens(); location.reload(); }, 1200);
+      api.clearTokens(); window.dispatchEvent(new Event('kf:signed-out')); renderLogin();
+      showCompletion('Password updated', 'Your new password is ready. Please sign in again to keep your account secure.');
     }).catch(function(e){ toast(e.message||'Failed', 'error'); });
   };
   $('#reqProfileVerify').onclick = function(){
-    var note = prompt('Add a note for the review team (optional):') || '';
-    api.requestVerification('user', '', note).then(function(){ toast('Request submitted'); })
-      .catch(function(e){ toast(e.message||'Failed', 'error'); });
+    var dialog = openModal({ title:'Request profile verification',
+      body:'<p class="confirmation-message mb-3">Our team will review your profile before adding a verified badge.</p><div class="field"><label>Note for the review team (optional)</label><textarea class="textarea" id="verificationNote" rows="4" placeholder="Add any details that help us verify your profile."></textarea></div>',
+      footer:'<button class="btn btn-secondary" data-close>Cancel</button><button class="btn btn-primary" id="submitVerification">Submit request</button>'
+    });
+    $('#submitVerification', dialog).onclick = function(){
+      var button = this;
+      button.disabled = true;
+      api.requestVerification('user', '', $('#verificationNote', dialog).value.trim()).then(function(){
+        closeModal(dialog);
+        showCompletion('Request submitted', 'Your profile is now waiting for review. We will notify you when a decision is made.');
+      }).catch(function(e){ toast(e.message||'Failed', 'error'); button.disabled = false; });
+    };
   };
   $('#logoutSettingsBtn').onclick = doLogout;
   api.getBlocked().then(function(r){

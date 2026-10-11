@@ -1,4 +1,6 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
+import { toast, feedbackIcon } from './feedback.js';
+import { animateFeedback } from './motion.js';
 
 function safeStorageGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
 
@@ -106,21 +108,6 @@ function verifiedBadge(){
   return '<span class="verified-badge" title="Verified"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>';
 }
 
-function toast(msg, type){
-  type = type || 'success';
-  var icons = {
-    success:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>',
-    error:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>',
-    warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M10.3 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.7 3.86a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>'
-  };
-  var root = document.getElementById('toasts'); if (!root) return;
-  var el = document.createElement('div');
-  el.className = 'toast ' + type;
-  el.innerHTML = (icons[type]||icons.success) + '<div>' + esc(msg) + '</div>';
-  root.appendChild(el);
-  setTimeout(function(){ el.style.animation='toastIn .3s reverse'; setTimeout(function(){ el.remove(); }, 280); }, 3600);
-}
-
 var fieldSequence = 0, modalSequence = 0, keyboardInput = false;
 var modalBackground = [], modalOverflow = '';
 document.addEventListener('keydown', function(){ keyboardInput = true; });
@@ -161,6 +148,7 @@ function openModal(opts){
   var wrap = document.createElement('div');
   wrap.className = 'overlay';
   wrap._returnFocus = document.activeElement;
+  wrap._onClose = opts.onClose;
   wrap.dataset.keyboard = String(keyboardInput);
   wrap.tabIndex = -1;
   wrap.setAttribute('role','dialog');
@@ -190,7 +178,7 @@ function openModal(opts){
   labelFields(wrap);
   var focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]';
   wrap.addEventListener('keydown', function(e){
-    if (wrap !== $('#modalRoot').lastElementChild || document.querySelector('.story-viewer')) return;
+    if (wrap !== $('#modalRoot').lastElementChild) return;
     if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(wrap); return; }
     if (e.key !== 'Tab') return;
     var controls = $$(focusable, wrap).filter(function(el){ return el.getClientRects().length; });
@@ -202,7 +190,7 @@ function openModal(opts){
   requestAnimationFrame(function(){
     if (!wrap.isConnected || wrap !== $('#modalRoot').lastElementChild) return;
     var firstInput = $('input:not([type=hidden]),textarea,select', wrap);
-    (firstInput || $(focusable, wrap) || wrap).focus();
+    ((opts.initialFocus && $(opts.initialFocus, wrap)) || firstInput || $(focusable, wrap) || wrap).focus();
   });
   return wrap;
 }
@@ -213,6 +201,7 @@ function closeModal(el){
     el.remove();
     syncModalBackground();
     if (restore && restore.isConnected) restore.focus({ preventScroll:true });
+    if (el._onClose) { var closed = el._onClose; el._onClose = null; closed(); }
   }
 }
 
@@ -220,9 +209,51 @@ function closeAllModals(){
   var r = document.getElementById('modalRoot');
   if (!r) return;
   var first = r.firstElementChild, restore = first && first._returnFocus;
+  var closing = Array.from(r.children);
   r.innerHTML = '';
   syncModalBackground();
   if (restore && restore.isConnected) restore.focus({ preventScroll:true });
+  closing.forEach(function(el){ if (el._onClose) { var closed = el._onClose; el._onClose = null; closed(); } });
+}
+
+function confirmAction(options){
+  return new Promise(function(resolve){
+    var accepted = false;
+    var dialog = openModal({
+      title:options.title, size:'confirmation', initialFocus:'[data-close].btn',
+      body:'<div class="confirmation-mark ' + (options.danger === false ? '' : 'danger') + '">' + feedbackIcon(options.danger === false ? 'success' : 'warn') + '</div>' +
+        '<p class="confirmation-message">' + esc(options.message || 'This action cannot be undone.') + '</p>',
+      footer:'<button type="button" class="btn btn-secondary" data-close>Cancel</button><button type="button" class="btn ' +
+        (options.danger === false ? 'btn-primary' : 'btn-danger') + '" data-confirm>' + esc(options.confirmLabel || 'Delete') + '</button>',
+      onClose:function(){ resolve(accepted); }
+    });
+    $('[data-confirm]', dialog).onclick = function(){ accepted = true; closeModal(dialog); };
+  });
+}
+
+function showCompletion(title, message, options){
+  options = options || {};
+  var dialog = openModal({ title:title, size:'confirmation',
+    body:'<div class="confirmation-mark">' + feedbackIcon('success') + '</div><p class="confirmation-message">' + esc(message) + '</p>',
+    footer:(options.route ? '<button class="btn btn-secondary" data-next>' + esc(options.label || 'View details') + '</button>' : '') +
+      '<button class="btn btn-primary" data-close>Done</button>'
+  });
+  var next = $('[data-next]', dialog);
+  if (next) next.onclick = function(){ closeModal(dialog); navigate(options.route); };
+  animateFeedback($('.confirmation-mark', dialog));
+  return dialog;
+}
+
+function copyLink(url){
+  function fallback(){
+    var dialog = openModal({ title:'Share this link', size:'sm',
+      body:'<div class="field"><label>Link to copy</label><input class="input" readonly data-copy-link value="' + esc(url) + '"></div><p class="field-hint">Select the link and use your device\'s copy command.</p>',
+      footer:'<button class="btn btn-primary" data-close>Done</button>'
+    });
+    $('[data-copy-link]', dialog).onclick = function(){ this.select(); };
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(function(){ toast('Link copied to clipboard'); }).catch(fallback);
+  else fallback();
 }
 
 function applyTheme(){
@@ -245,4 +276,4 @@ function navigate(hash){ if(location.hash === hash) rerender(); else location.ha
 function rerender(){ window.dispatchEvent(new Event('hashchange')); }
 
 
-export { safeStorageGet, safeStorageSet, safeStorageRemove, __kfShowError, hideBoot, State, $, $$, esc, initials, avatar, timeAgo, fmtDate, debounce, verifiedBadge, toast, labelFields, openModal, closeModal, closeAllModals, applyTheme, setTheme, navigate, rerender };
+export { safeStorageGet, safeStorageSet, safeStorageRemove, __kfShowError, hideBoot, State, $, $$, esc, initials, avatar, timeAgo, fmtDate, debounce, verifiedBadge, toast, labelFields, openModal, closeModal, closeAllModals, confirmAction, showCompletion, copyLink, applyTheme, setTheme, navigate, rerender };

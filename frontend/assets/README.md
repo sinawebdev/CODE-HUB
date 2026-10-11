@@ -2,6 +2,8 @@
 
 These assets are served locally so the interface does not depend on third-party font or photo requests.
 
+`gsap.min.js` is the pinned GSAP 3.14.2 runtime from the published `gsap` npm package, downloaded from `https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js`. Its original copyright and [standard license](https://gsap.com/standard-license/) header is retained. HyperFrames' GSAP timing/easing guidance is applied to live interactions; no video composition runtime is loaded into the app.
+
 | Local asset | Source and creator | License |
 | --- | --- | --- |
 | `professional-at-work.jpg` | [Christina Morillo / Pexels, photo 1181727](https://www.pexels.com/photo/photography-of-woman-using-laptop-1181727/), downloaded at 1400px wide | [Pexels License](https://www.pexels.com/license/) |

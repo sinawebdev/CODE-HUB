@@ -1,6 +1,6 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
-import { $, $$, State, avatar, closeAllModals, esc, initials, openModal, timeAgo, toast, verifiedBadge } from './core.js';
+import { $, $$, State, avatar, closeAllModals, confirmAction, esc, initials, openModal, timeAgo, toast, verifiedBadge } from './core.js';
 import { shell, svgIcon } from './layout.js';
 import { loadFeed, openComposer } from './feed.js';
 
@@ -240,8 +240,9 @@ function renderStoryViewer(){
   $('#storyNext').onclick = storyNext;
   $('#storyPrev').onclick = storyPrev;
   var del = $('#storyDelete');
-  if (del) del.onclick = function(){
-    if (!confirm('Delete this story?')) return;
+  if (del) del.onclick = async function(){
+    cancelAnimationFrame(State.storyTimer);
+    if (!await confirmAction({ title:'Delete this story?', message:'Your story will be permanently removed.' })) { if (State.storyGroup) renderStoryViewer(); return; }
     api.deleteStory(story.id).then(function(){
       toast('Story deleted');
       cancelAnimationFrame(State.storyTimer);

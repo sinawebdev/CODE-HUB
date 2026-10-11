@@ -2,6 +2,7 @@
 import * as api from './api.js';
 import { refreshCounts, shell, svgIcon } from './layout.js';
 import { $, $$, avatar, esc, toast, verifiedBadge } from './core.js';
+import { animateAction } from './motion.js';
 
 function renderNetwork(){
   shell('network', { wide:true });
@@ -88,11 +89,16 @@ document.addEventListener('click', function(e){
   if (uf) { api.follow(uf.getAttribute('data-unfollow'), false).then(function(){ toast('Unfollowed'); loadNetworkTab('following'); }).catch(function(err){ toast(err.message||'Failed','error'); }); }
 });
 
-function doConnect(userId){
+const pendingConnections = new Set();
+function doConnect(userId, button){
+  if (pendingConnections.has(userId)) return;
+  pendingConnections.add(userId);
+  if (button) button.disabled = true;
   api.sendConnection(userId, '').then(function(){
+    if (button) { button.textContent = 'Invitation sent'; animateAction(button, true); }
     toast('Connection request sent');
-    if (location.hash.indexOf('#/network')===0) loadNetworkTab('suggestions');
-  }).catch(function(e){ toast(e.message||'Failed', 'error'); });
+  }).catch(function(e){ toast(e.message||'Failed', 'error'); if (button) button.disabled = false; })
+    .finally(function(){ pendingConnections.delete(userId); });
 }
 
 export { renderNetwork, loadNetworkTab, personCard, doConnect };

@@ -1,6 +1,6 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
-import { $, $$, State, avatar, closeAllModals, esc, openModal, timeAgo, toast } from './core.js';
+import { $, $$, State, avatar, closeAllModals, confirmAction, esc, openModal, timeAgo, toast } from './core.js';
 import { shell, svgIcon } from './layout.js';
 
 function renderAdmin(){
@@ -162,7 +162,7 @@ function loadAdminVerifications(){
   load();
 }
 
-function reviewVerification(id, decision){
+async function reviewVerification(id, decision){
   if (decision === 'reject') {
     openModal({
       title:'Reject verification', size:'sm',
@@ -183,7 +183,7 @@ function reviewVerification(id, decision){
     return;
   }
   var label = decision === 'approve' ? 'Approve' : 'Suspend';
-  if (!confirm(label + ' this verification request?')) return;
+  if (!await confirmAction({ title:label + ' this verification request?', message:'The applicant\'s verification status will be updated.', confirmLabel:label, danger:decision !== 'approve' })) return;
   api.adminReviewVerification(id, decision, '').then(function(){
     toast('Verification ' + (decision === 'approve' ? 'approved' : 'suspended'));
     loadAdminVerifications();

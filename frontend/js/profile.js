@@ -1,7 +1,7 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
 import { refreshCounts, shell } from './layout.js';
-import { $, $$, avatar, closeAllModals, esc, openModal, toast, verifiedBadge } from './core.js';
+import { $, $$, avatar, closeAllModals, confirmAction, esc, openModal, toast, verifiedBadge } from './core.js';
 import { openConversation } from './messages.js';
 import { bindCarousels, openReportModal, postCard } from './feed.js';
 import { bootstrap } from './auth.js';
@@ -149,9 +149,9 @@ function renderProfileView(d, isMe){
   var renderTab = function(t){
     $('#profContent').innerHTML = tabs[t] ? tabs[t]() : '';
     if (isMe) {
-      $$('[data-del-exp]').forEach(function(b){ b.onclick = function(){ if(!confirm('Delete?'))return; api.deleteExperience(b.getAttribute('data-del-exp')).then(renderMyProfile).catch(function(e){ toast(e.message||'Failed','error'); }); }; });
-      $$('[data-del-edu]').forEach(function(b){ b.onclick = function(){ if(!confirm('Delete?'))return; api.deleteEducation(b.getAttribute('data-del-edu')).then(renderMyProfile).catch(function(e){ toast(e.message||'Failed','error'); }); }; });
-      $$('[data-del-cert]').forEach(function(b){ b.onclick = function(){ if(!confirm('Delete?'))return; api.deleteCertification(b.getAttribute('data-del-cert')).then(renderMyProfile).catch(function(e){ toast(e.message||'Failed','error'); }); }; });
+      $$('[data-del-exp]').forEach(function(b){ b.onclick = async function(){ if(!await confirmAction({title:'Remove this experience?',message:'This entry will be removed from your profile.'}))return; api.deleteExperience(b.getAttribute('data-del-exp')).then(renderMyProfile).catch(function(e){ toast(e.message||'Failed','error'); }); }; });
+      $$('[data-del-edu]').forEach(function(b){ b.onclick = async function(){ if(!await confirmAction({title:'Remove this education?',message:'This entry will be removed from your profile.'}))return; api.deleteEducation(b.getAttribute('data-del-edu')).then(renderMyProfile).catch(function(e){ toast(e.message||'Failed','error'); }); }; });
+      $$('[data-del-cert]').forEach(function(b){ b.onclick = async function(){ if(!await confirmAction({title:'Remove this certification?',message:'This entry will be removed from your profile.'}))return; api.deleteCertification(b.getAttribute('data-del-cert')).then(renderMyProfile).catch(function(e){ toast(e.message||'Failed','error'); }); }; });
       var ab = $('#addExpBtn'); if (ab) ab.onclick = openExperienceForm;
       var eb = $('#addEduBtn'); if (eb) eb.onclick = openEducationForm;
     }
@@ -166,18 +166,18 @@ function renderProfileView(d, isMe){
   var editBtn = $('#editProfileBtn'); if (editBtn) editBtn.onclick = openEditProfileModal;
   if (!isMe) {
     var cb = $('#connBtn');
-    if (cb) cb.onclick = function(){
+    if (cb) cb.onclick = async function(){
       var state = cb.getAttribute('data-state');
       cb.disabled = true;
       var action;
       if (state === 'connected') {
         if (!rel.connectionId) { toast('Connection id missing - refreshing', 'warn'); renderUserProfile(user.UserID); return; }
-        if (!confirm('Remove this connection?')) { cb.disabled = false; return; }
+        if (!await confirmAction({title:'Remove this connection?',message:'You can send a new invitation later.',confirmLabel:'Remove'})) { cb.disabled = false; return; }
         action = api.respondConnection(rel.connectionId, 'remove').then(function(){ toast('Connection removed'); renderUserProfile(user.UserID); });
       } else if (state === 'incoming') {
         action = api.respondConnection(rel.connectionId, 'accept').then(function(){ toast('Connected'); refreshCounts(); renderUserProfile(user.UserID); });
       } else if (state === 'outgoing') {
-        if (!confirm('Withdraw this request?')) { cb.disabled = false; return; }
+        if (!await confirmAction({title:'Withdraw this invitation?',message:'Your pending invitation will be cancelled.',confirmLabel:'Withdraw'})) { cb.disabled = false; return; }
         action = api.respondConnection(rel.connectionId, 'cancel').then(function(){ toast('Request withdrawn'); refreshCounts(); renderUserProfile(user.UserID); });
       } else {
         action = api.sendConnection(user.UserID, '').then(function(){ toast('Connection request sent'); renderUserProfile(user.UserID); });

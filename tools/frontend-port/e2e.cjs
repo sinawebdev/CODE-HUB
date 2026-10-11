@@ -175,6 +175,8 @@ async function goto(page, hash) { await page.evaluate(h => { location.hash = h; 
     await page.locator('#applyCV').setInputFiles({ name: 'cv.pdf', mimeType: 'application/pdf', buffer: PDF });
     await page.waitForTimeout(1500);
     await page.locator('#applySubmit').click();
+    await page.getByRole('dialog', { name:'Application submitted' }).waitFor({ timeout:10000 });
+    await page.getByRole('dialog', { name:'Application submitted' }).getByRole('button', { name:'Done', exact:true }).click();
     await page.locator('#main button:has-text("Applied")').waitFor({ timeout: 10000 });
   });
 

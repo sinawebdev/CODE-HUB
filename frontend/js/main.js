@@ -42,7 +42,7 @@ document.addEventListener('click', function(e){
     return;
   }
   var c = e.target.closest('[data-connect]');
-  if (c) { e.preventDefault(); doConnect(c.getAttribute('data-connect')); return; }
+  if (c) { e.preventDefault(); doConnect(c.getAttribute('data-connect'), c); return; }
   if (e.target.closest('[data-new-post]')) { e.preventDefault(); openComposer(); return; }
 });
 

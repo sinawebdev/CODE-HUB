@@ -1,7 +1,8 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
 import { shell, svgIcon } from './layout.js';
-import { $, $$, closeAllModals, debounce, esc, openModal, timeAgo, toast, verifiedBadge } from './core.js';
+import { $, $$, closeAllModals, debounce, esc, openModal, showCompletion, timeAgo, toast, verifiedBadge } from './core.js';
+import { animateAction } from './motion.js';
 import { openReportModal, postCard } from './feed.js';
 import { consumeJobSearch } from './job-search-intent.js';
 
@@ -161,11 +162,15 @@ function renderJob(jobId){
     }
     $('#main').innerHTML = html;
     $('#saveJobBtn').onclick = function(){
+      var button = this;
+      button.disabled = true;
       api.saveJob(jobId, !j.saved).then(function(r){
         j.saved = r.data.saved;
-        $('#saveJobBtn').textContent = j.saved ? 'Saved' : 'Save job';
+        button.textContent = j.saved ? 'Saved' : 'Save job';
+        button.setAttribute('aria-pressed', String(j.saved));
+        animateAction(button, j.saved);
         toast(j.saved ? 'Job saved' : 'Removed');
-      }).catch(function(e){ toast(e.message||'Failed', 'error'); });
+      }).catch(function(e){ toast(e.message||'Failed', 'error'); }).finally(function(){ button.disabled = false; });
     };
     var applyBtn = $('#applyBtn'); if (applyBtn) applyBtn.onclick = function(){ openApplyModal(jobId); };
     $('#reportJob').onclick = function(){ openReportModal('Job', jobId); };
@@ -263,7 +268,8 @@ function openApplyModal(jobId){
     var letter = $('#applyLetter').value.trim();
     var btn = $('#applySubmit'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
     api.applyJob(jobId, letter, cvFileId).then(function(){
-      closeAllModals(); toast('Application submitted'); renderJob(jobId);
+      closeAllModals(); renderJob(jobId);
+      showCompletion('Application submitted', 'Your application has been sent to the employer. You can check its status in My applications.', { route:'#/applications', label:'View my applications' });
     }).catch(function(e){ toast(e.message||'Failed', 'error'); btn.disabled = false; btn.textContent = 'Submit application'; });
   };
 }

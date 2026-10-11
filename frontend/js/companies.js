@@ -1,7 +1,7 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
 import { shell, svgIcon } from './layout.js';
-import { $, $$, avatar, closeAllModals, debounce, esc, openModal, toast, verifiedBadge } from './core.js';
+import { $, $$, avatar, closeAllModals, confirmAction, debounce, esc, openModal, toast, verifiedBadge } from './core.js';
 import { jobCard } from './jobs.js';
 
 function renderCompanies(){
@@ -168,9 +168,9 @@ function renderCompany(companyId){
       $('#coContent').innerHTML = tabs[t] ? tabs[t]() : '';
       if (t === 'locations' && c.canManage) {
         var b = $('#addLocationBtn2'); if (b) b.onclick = function(){ openLocationForm(companyId, null); };
-        $$('[data-del-loc]').forEach(function(x){ x.onclick = function(ev){
+        $$('[data-del-loc]').forEach(function(x){ x.onclick = async function(ev){
           ev.stopPropagation();
-          if (!confirm('Delete this workplace?')) return;
+          if (!await confirmAction({ title:'Delete this workplace?', message:'This workplace will be removed from the company profile.' })) return;
           api.deleteLocation(x.getAttribute('data-del-loc')).then(function(){ toast('Deleted'); renderCompany(companyId); })
             .catch(function(e){ toast(e.message||'Failed', 'error'); });
         }; });

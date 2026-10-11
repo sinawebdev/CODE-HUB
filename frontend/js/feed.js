@@ -1,6 +1,7 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
-import { $, $$, State, avatar, closeAllModals, esc, openModal, timeAgo, toast, verifiedBadge } from './core.js';
+import { $, $$, State, avatar, closeAllModals, confirmAction, copyLink, esc, openModal, timeAgo, toast, verifiedBadge } from './core.js';
+import { animateAction } from './motion.js';
 import { shell, svgIcon } from './layout.js';
 
 function loadFeed(reset){
@@ -149,6 +150,8 @@ document.addEventListener('click', function(e){
   var likeBtn = e.target.closest('[data-like]');
   if (likeBtn) {
     e.preventDefault();
+    if (likeBtn.disabled) return;
+    likeBtn.disabled = true;
     var pid = likeBtn.getAttribute('data-like');
     api.react(pid, 'like').then(function(res){
       var p = null;
@@ -157,6 +160,7 @@ document.addEventListener('click', function(e){
       likeBtn.classList.toggle('liked', res.data.liked);
       likeBtn.setAttribute('aria-pressed', String(!!res.data.liked));
       var svg = likeBtn.querySelector('svg'); if (svg) svg.setAttribute('fill', res.data.liked?'currentColor':'none');
+      animateAction(likeBtn, res.data.liked);
       var root = document.querySelector('[data-post-id="' + pid + '"]');
       if (root) {
         var stats = root.querySelector('.post-stats');
@@ -167,21 +171,24 @@ document.addEventListener('click', function(e){
           stats.innerHTML = likes + comments + views;
         }
       }
-    }).catch(function(err){ toast(err.message||'Failed', 'error'); });
+    }).catch(function(err){ toast(err.message||'Failed', 'error'); }).finally(function(){ likeBtn.disabled = false; });
     return;
   }
   var saveBtn = e.target.closest('[data-save]');
   if (saveBtn) {
     e.preventDefault();
+    if (saveBtn.disabled) return;
+    saveBtn.disabled = true;
     var sid = saveBtn.getAttribute('data-save');
     var isSaved = saveBtn.classList.contains('saved');
     api.savePost(sid, !isSaved).then(function(res){
       saveBtn.classList.toggle('saved', res.data.saved);
       saveBtn.setAttribute('aria-pressed', String(!!res.data.saved));
       var svg = saveBtn.querySelector('svg'); if (svg) svg.setAttribute('fill', res.data.saved?'currentColor':'none');
+      animateAction(saveBtn, res.data.saved);
       for (var i=0;i<State.feed.posts.length;i++) { if (State.feed.posts[i].id===sid) { State.feed.posts[i].saved = res.data.saved; break; } }
       toast(res.data.saved ? 'Post saved' : 'Removed from saved');
-    }).catch(function(err){ toast(err.message||'Failed', 'error'); });
+    }).catch(function(err){ toast(err.message||'Failed', 'error'); }).finally(function(){ saveBtn.disabled = false; });
     return;
   }
   var shareBtn = e.target.closest('[data-share]');
@@ -190,8 +197,7 @@ document.addEventListener('click', function(e){
     var shid = shareBtn.getAttribute('data-share');
     api.sharePost(shid).then(function(){
       var url = location.origin + location.pathname + '#/post/' + shid;
-      try { navigator.clipboard.writeText(url).then(function(){ toast('Link copied to clipboard'); }).catch(function(){ prompt('Copy this link:', url); }); }
-      catch(e2){ prompt('Copy this link:', url); }
+      copyLink(url);
     }).catch(function(err){ toast(err.message||'Failed', 'error'); });
     return;
   }
@@ -240,10 +246,10 @@ function commentRow(c, postId){
   '</div>';
 }
 
-document.addEventListener('click', function(e){
+document.addEventListener('click', async function(e){
   var del = e.target.closest('[data-del-comment]');
   if (del) {
-    if (!confirm('Delete this comment?')) return;
+    if (!await confirmAction({ title:'Delete this comment?', message:'Your comment will be permanently removed from this conversation.' })) return;
     api.deleteComment(del.getAttribute('data-del-comment')).then(function(){
       var row = del.closest('[data-comment-id]');
       if (row) row.remove();
@@ -318,15 +324,14 @@ function openPostMenu(postId, anchor){
     } else if (e.key === 'Tab') { anchor.focus(); close(); }
   });
   setTimeout(function(){ if (dd.isConnected) document.addEventListener('click', close, {once:true}); }, 0);
-  dd.addEventListener('click', function(ev){
+  dd.addEventListener('click', async function(ev){
     var actEl = ev.target.closest('[data-act]');
     var act = actEl ? actEl.getAttribute('data-act') : null;
     if (!act) return;
     close();
     if (act === 'copy') {
       var url = location.origin + location.pathname + '#/post/' + postId;
-      try { navigator.clipboard.writeText(url).then(function(){ toast('Link copied'); }).catch(function(){ prompt('Copy this link:', url); }); }
-      catch(e){ prompt('Copy this link:', url); }
+      copyLink(url);
     } else if (act === 'edit') {
       openModal({
         title:'Edit post',
@@ -342,7 +347,7 @@ function openPostMenu(postId, anchor){
         }).catch(function(e){ toast(e.message||'Failed', 'error'); });
       };
     } else if (act === 'delete') {
-      if (!confirm('Delete this post? This cannot be undone.')) return;
+      if (!await confirmAction({ title:'Delete this post?', message:'Your post and its conversation will be permanently removed. This cannot be undone.' })) return;
       api.deletePost(postId).then(function(){
         State.feed.posts = State.feed.posts.filter(function(x){ return x.id!==postId; });
         var el = document.querySelector('[data-post-id="' + postId + '"]'); if (el) el.remove();
