@@ -1,7 +1,7 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
 import { $, $$, State, avatar, closeAllModals, esc, initials, openModal, timeAgo, toast, verifiedBadge } from './core.js';
-import { loadRail, shell } from './layout.js';
+import { shell, svgIcon } from './layout.js';
 import { loadFeed, openComposer } from './feed.js';
 
 function renderHome(){
@@ -9,29 +9,30 @@ function renderHome(){
   if (!State.emailVerified) { location.hash = '#/verify-email'; return; }
   shell('home');
   $('#main').innerHTML =
-    '<div class="stories-bar" id="storiesBar">' +
+    '<header class="feed-heading"><div><div class="section-eyebrow">Your community</div><h1>Good things start<br>with a connection.</h1><p>Ideas, opportunities and updates from your network.</p></div>' +
+      '<a class="feed-search" href="#/search" aria-label="Search KoforLink">' + svgIcon('search') + '</a></header>' +
+    '<section class="stories-bar" id="storiesBar" aria-label="Community stories"><div class="stories-label">Community stories <span>Small moments. New perspectives.</span></div>' +
       '<div class="stories-scroll" id="storiesScroll">' +
         '<div class="center-loader" style="padding:8px 0"><span class="spinner dark"></span></div>' +
       '</div>' +
-    '</div>' +
-    '<div class="card card-pad mb-4" style="cursor:pointer" id="composeTrigger">' +
-      '<div class="flex gap-3">' +
+    '</section>' +
+    '<section class="card card-pad mb-4 composer-card" id="composeTrigger" aria-label="Share with your network">' +
+      '<div class="composer-row">' +
         avatar(State.profilePhoto, State.user.FirstName+' '+State.user.LastName, '48') +
-        '<div style="flex:1">' +
-          '<input class="input" placeholder="Share an update, idea or opportunity..." readonly style="cursor:pointer;background:var(--surface-2)">' +
-        '</div>' +
+        '<button class="composer-prompt" data-new-post><strong>What would you like to share, ' + esc(State.user.FirstName) + '?</strong><span>An idea, an opportunity, or a little good news.</span></button>' +
+        '<button class="composer-add" data-new-post aria-label="Create a post">' + svgIcon('plus') + '</button>' +
       '</div>' +
-      '<div class="flex gap-2 mt-3" style="flex-wrap:wrap">' +
-        '<button class="btn btn-ghost btn-sm" data-new-post>Photo / Video</button>' +
-        '<button class="btn btn-ghost btn-sm" data-new-story>Story</button>' +
-        '<button class="btn btn-ghost btn-sm" data-goto="#/jobs">Job</button>' +
-        '<button class="btn btn-ghost btn-sm" data-goto="#/events">Event</button>' +
+      '<div class="composer-tools">' +
+        '<button data-new-post>' + svgIcon('plus') + 'Photo / video</button>' +
+        '<button data-new-story>' + svgIcon('user') + 'Story</button>' +
+        '<button data-goto="#/jobs">' + svgIcon('briefcase') + 'Jobs</button>' +
+        '<button data-goto="#/events">' + svgIcon('calendar') + 'Events</button>' +
       '</div>' +
-    '</div>' +
+    '</section>' +
+    '<div class="feed-section-head"><h2>From your network</h2><span>Latest updates</span></div>' +
     '<div id="feed"><div class="card card-pad mb-4"><div class="flex gap-3"><div class="skeleton sk-avatar"></div><div style="flex:1"><div class="skeleton sk-line" style="width:40%"></div><div class="skeleton sk-line" style="width:80%"></div><div class="skeleton sk-line" style="width:60%"></div></div></div></div></div>';
   $('#composeTrigger').onclick = function(e){ if(e.target.closest('button,a'))return; openComposer(); };
   var ns = $('[data-new-story]', $('#main')); if (ns) ns.onclick = function(e){ e.stopPropagation(); openStoryCreator(); };
-  loadRail();
   loadStories();
   loadFeed(true);
 }
@@ -62,7 +63,7 @@ function renderStoriesBar(){
     '</button>';
   }
   if (!State.stories.length) {
-    html += '<div class="small muted" style="align-self:center;padding:0 10px;white-space:nowrap">No stories yet — be the first to share one.</div>';
+    html += '<div class="story-empty">A glimpse of your community.<br>Share a moment to get things started.</div>';
   }
   State.stories.forEach(function(g, i){
     var ringCls = g.hasUnviewed ? '' : 'viewed';

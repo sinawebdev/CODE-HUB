@@ -3,6 +3,7 @@ import * as api from './api.js';
 import { shell, svgIcon } from './layout.js';
 import { $, $$, closeAllModals, debounce, esc, openModal, timeAgo, toast, verifiedBadge } from './core.js';
 import { openReportModal, postCard } from './feed.js';
+import { consumeJobSearch } from './job-search-intent.js';
 
 function renderJobs(){
   shell('jobs', { wide:true, noRail:true });
@@ -16,18 +17,22 @@ function renderJobs(){
     '</div>' +
     '<div class="card card-pad mb-4">' +
       '<div class="flex gap-3" style="flex-wrap:wrap">' +
-        '<input class="input" id="jobSearch" placeholder="Search jobs, skills, companies..." style="flex:1;min-width:200px">' +
-        '<select class="select" id="jobTypeFilter" style="width:auto;min-width:140px">' +
+        '<div class="job-filter-field" style="flex:1;min-width:200px"><label for="jobSearch">Search</label><input class="input" id="jobSearch" placeholder="Job title, skill or company"></div>' +
+        '<div class="job-filter-field" style="flex:1;min-width:160px"><label for="jobCityFilter">Location</label><input class="input" id="jobCityFilter" placeholder="City or town"></div>' +
+        '<div class="job-filter-field"><label for="jobTypeFilter">Employment type</label><select class="select" id="jobTypeFilter">' +
           '<option value="">All types</option><option>Full-time</option><option>Part-time</option><option>Contract</option><option>Internship</option><option>Freelance</option><option>Volunteer</option>' +
-        '</select>' +
-        '<select class="select" id="jobArrangeFilter" style="width:auto;min-width:140px">' +
+        '</select></div>' +
+        '<div class="job-filter-field"><label for="jobArrangeFilter">Work arrangement</label><select class="select" id="jobArrangeFilter">' +
           '<option value="">Any arrangement</option><option>On-site</option><option>Remote</option><option>Hybrid</option>' +
-        '</select>' +
+        '</select></div>' +
       '</div>' +
     '</div>' +
     '<div id="jobsList"><div class="center-loader"><span class="spinner dark"></span></div></div>';
   $('#postJobBtn').onclick = openJobForm;
+  var intent = consumeJobSearch();
+  if (intent) { $('#jobSearch').value = intent.query; $('#jobCityFilter').value = intent.city; }
   $('#jobSearch').addEventListener('input', debounce(function(){ loadJobs(); }, 350));
+  $('#jobCityFilter').addEventListener('input', debounce(function(){ loadJobs(); }, 350));
   $('#jobTypeFilter').onchange = loadJobs;
   $('#jobArrangeFilter').onchange = loadJobs;
   loadJobs();
@@ -38,6 +43,7 @@ function loadJobs(){
   el.innerHTML = '<div class="center-loader"><span class="spinner dark"></span></div>';
   api.getJobs({
     query: $('#jobSearch') ? $('#jobSearch').value : '',
+    city: $('#jobCityFilter') ? $('#jobCityFilter').value : '',
     employmentType: $('#jobTypeFilter') ? $('#jobTypeFilter').value : '',
     workArrangement: $('#jobArrangeFilter') ? $('#jobArrangeFilter').value : '',
     limit: 60

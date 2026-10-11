@@ -1,7 +1,7 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
-import { $, State, avatar, esc, hideBoot, rerender, setTheme, verifiedBadge } from './core.js';
-import { bootstrap, doLogout } from './auth.js';
+import { $, State, avatar, closeModal, esc, hideBoot, openModal, rerender, setTheme, verifiedBadge } from './core.js';
+import { doLogout } from './auth.js';
 
 function svgIcon(name){
   var icons = {
@@ -18,35 +18,41 @@ function svgIcon(name){
     shield:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
     search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
     bookmark:'<path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>',
+    more:'<circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/>',
     logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
     plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
   };
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">' + (icons[name]||'') + '</svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (icons[name]||'') + '</svg>';
 }
 
 function buildSidebar(active){
   var items = [
     { key:'home', label:'Home', href:'#/', icon:'home' },
     { key:'network', label:'My Network', href:'#/network', icon:'network', badge: State.counts.connectionRequests },
+    { key:'messages', label:'Messages', href:'#/messages', icon:'message', badge: State.counts.messages },
+    { key:'notifications', label:'Notifications', href:'#/notifications', icon:'bell', badge: State.counts.notifications },
     { key:'jobs', label:'Jobs', href:'#/jobs', icon:'briefcase' },
     { key:'companies', label:'Companies', href:'#/companies', icon:'building' },
     { key:'local', label:'KoforLink Local', href:'#/local', icon:'map' },
-    { key:'messages', label:'Messages', href:'#/messages', icon:'message', badge: State.counts.messages },
     { key:'events', label:'Events', href:'#/events', icon:'calendar' },
-    { key:'notifications', label:'Notifications', href:'#/notifications', icon:'bell', badge: State.counts.notifications },
     { key:'profile', label:'Profile', href:'#/profile', icon:'user' },
     { key:'settings', label:'Settings', href:'#/settings', icon:'settings' }
   ];
   if (State.isStaff) items.push({ key:'admin', label:'Admin Center', href:'#/admin', icon:'shield' });
   var name = State.user.FirstName + ' ' + State.user.LastName;
-  var html = '<div class="brand"><div class="brand-mark">KL</div><div class="brand-name">Kofor<span>Link</span></div></div>';
+  var html = '<a href="#/" class="brand" aria-label="KoforLink home"><div class="brand-mark">KL</div><div class="brand-name">Kofor<span>Link</span></div></a>' +
+    '<div class="workspace-region">Eastern Region, Ghana</div>' +
+    '<button class="workspace-search" data-goto="#/search">' + svgIcon('search') + '<span>Search KoforLink</span></button>' +
+    '<nav class="workspace-nav" aria-label="Main navigation"><div class="nav-section-label">Your workspace</div>';
   items.forEach(function(i){
-    html += '<a class="nav-item ' + (active===i.key?'active':'') + '" href="' + i.href + '">' +
+    if (i.key === 'jobs') html += '<div class="nav-section-label">Discover</div>';
+    if (i.key === 'profile') html += '<div class="nav-section-label">Your account</div>';
+    html += '<a class="nav-item ' + (active===i.key?'active':'') + '" href="' + i.href + '"' + (active===i.key?' aria-current="page"':'') + '>' +
       svgIcon(i.icon) + '<span>' + esc(i.label) + '</span>' +
       (i.badge ? '<span class="nav-badge">' + (i.badge>99?'99+':i.badge) + '</span>' : '') +
       '</a>';
   });
-  html += '<div class="sidebar-footer">' +
+  html += '</nav><div class="sidebar-footer">' +
     '<button class="user-chip" data-goto="#/profile">' +
       avatar(State.profilePhoto, name, '40') +
       '<div class="user-chip-info">' +
@@ -54,7 +60,7 @@ function buildSidebar(active){
         '<div class="user-chip-sub">' + esc(State.user.ProfessionalTitle || State.user.Role) + '</div>' +
       '</div>' +
     '</button>' +
-    '<button class="nav-item" id="themeToggleSide" style="margin-top:4px">' +
+    '<button class="nav-item" id="themeToggleSide" aria-label="Change theme, current theme ' + esc(State.theme) + '">' +
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>' +
       '<span>Theme: ' + esc(State.theme) + '</span>' +
     '</button>' +
@@ -68,15 +74,14 @@ function buildBottomNav(active){
     { key:'home', label:'Home', href:'#/', icon:'home' },
     { key:'network', label:'Network', href:'#/network', icon:'network', badge: State.counts.connectionRequests },
     { key:'jobs', label:'Jobs', href:'#/jobs', icon:'briefcase' },
-    { key:'messages', label:'Messages', href:'#/messages', icon:'message', badge: State.counts.messages },
-    { key:'profile', label:'Profile', href:'#/profile', icon:'user' }
+    { key:'messages', label:'Messages', href:'#/messages', icon:'message', badge: State.counts.messages }
   ];
   return items.map(function(i){
-    return '<button data-goto="' + i.href + '" class="' + (active===i.key?'active':'') + '">' +
+    return '<button data-goto="' + i.href + '" class="' + (active===i.key?'active':'') + '"' + (active===i.key?' aria-current="page"':'') + '>' +
       svgIcon(i.icon) + '<span>' + esc(i.label) + '</span>' +
       (i.badge ? '<span class="nav-badge">' + (i.badge>9?'9+':i.badge) + '</span>' : '') +
       '</button>';
-  }).join('');
+  }).join('') + '<button id="mobileMore" aria-label="More navigation">' + svgIcon('more') + '<span>More</span></button>';
 }
 
 function shell(active, opts){
@@ -90,7 +95,11 @@ function shell(active, opts){
   $('#shellGrid').className = 'shell' + (opts.noRail ? ' no-rail' : '') + (opts.full ? ' full' : '');
   $('#rail').innerHTML = opts.noRail || opts.full ? '' : buildRail();
   $('#main').className = 'main' + (opts.wide ? ' wide' : '');
+  $('#main').setAttribute('data-page', active);
+  $('#main').setAttribute('tabindex', '-1');
+  $('#bottomNav').setAttribute('aria-label', 'Mobile navigation');
   bindShellEvents();
+  if (!opts.noRail && !opts.full) loadRail();
   var dot = $('#mobileNotifDot'); if (dot) dot.classList.toggle('hidden', !State.counts.notifications);
 }
 
@@ -98,6 +107,24 @@ function bindShellEvents(){
   var side = $('#themeToggleSide'); if (side) side.onclick = cycleTheme;
   var mb = $('#themeToggleMobile'); if (mb) mb.onclick = cycleTheme;
   var lo = $('#logoutBtn'); if (lo) lo.onclick = doLogout;
+  var more = $('#mobileMore'); if (more) more.onclick = openMobileNavigation;
+}
+
+function openMobileNavigation(){
+  var items = [
+    ['Your profile', '#/profile', 'user'],
+    ['Companies', '#/companies', 'building'], ['KoforLink Local', '#/local', 'map'],
+    ['Events', '#/events', 'calendar'], ['Notifications', '#/notifications', 'bell'],
+    ['Settings', '#/settings', 'settings'], ['Search', '#/search', 'search']
+  ];
+  if (State.isStaff) items.push(['Admin Center', '#/admin', 'shield']);
+  var wrap = openModal({ title:'Explore KoforLink', size:'sm', body:
+    '<nav class="mobile-more-links" aria-label="More navigation">' + items.map(function(i){
+      return '<a class="nav-item" href="' + i[1] + '">' + svgIcon(i[2]) + '<span>' + esc(i[0]) + '</span></a>';
+    }).join('') + '</nav>', footer:'<button class="btn btn-secondary" id="mobileSignOut">Sign out</button>' });
+  wrap.setAttribute('aria-label', 'Explore KoforLink');
+  wrap.querySelectorAll('a').forEach(function(link){ link.onclick = function(){ closeModal(wrap); }; });
+  $('#mobileSignOut').onclick = function(){ closeModal(wrap); doLogout(); };
 }
 
 function cycleTheme(){
@@ -107,21 +134,21 @@ function cycleTheme(){
 }
 
 function buildRail(){
-  return '<div class="rail-card">' +
-      '<div class="flex-between mb-3"><h3 style="font-size:14px">Quick Actions</h3></div>' +
-      '<button class="btn btn-primary btn-block btn-sm" data-new-post>' + svgIcon('plus') + ' Create post</button>' +
-      '<div class="grid grid-2 mt-3" style="gap:8px">' +
-        '<button class="btn btn-secondary btn-sm" data-goto="#/jobs/near">Jobs near me</button>' +
-        '<button class="btn btn-secondary btn-sm" data-goto="#/companies/near">Companies near</button>' +
-      '</div>' +
-    '</div>' +
+  return '<div class="rail-intro"><div class="section-eyebrow">Close to home</div><h2>Your next step,<br>around the corner.</h2><p>Explore the people and places shaping the Eastern Region.</p></div>' +
+    '<section class="rail-card rail-discover" aria-labelledby="railDiscoverTitle">' +
+      '<h3 id="railDiscoverTitle">Explore nearby</h3>' +
+      '<a class="rail-link" href="#/jobs/near">' + svgIcon('briefcase') + '<span>Jobs near you<small>Find your next opportunity</small></span><span aria-hidden="true">&rarr;</span></a>' +
+      '<a class="rail-link" href="#/companies/near">' + svgIcon('building') + '<span>Local companies<small>Get to know local businesses</small></span><span aria-hidden="true">&rarr;</span></a>' +
+      '<a class="rail-link" href="#/events">' + svgIcon('calendar') + '<span>Community events<small>Meet, learn and connect</small></span><span aria-hidden="true">&rarr;</span></a>' +
+      '<button class="btn btn-primary btn-block btn-sm" data-new-post>' + svgIcon('plus') + ' Share an update</button>' +
+    '</section>' +
     '<div class="rail-card" id="railSuggestions">' +
-      '<div class="flex-between mb-3"><h3 style="font-size:14px">People you may know</h3></div>' +
+      '<div class="rail-section-head"><h3>Grow your circle</h3><a href="#/network">View all</a></div>' +
       '<div class="skeleton sk-line" style="width:80%"></div>' +
       '<div class="skeleton sk-line" style="width:60%"></div>' +
     '</div>' +
     '<div class="rail-card">' +
-      '<div class="flex-between mb-3"><h3 style="font-size:14px">Trending skills</h3></div>' +
+      '<div class="rail-section-head"><h3>Skills in the community</h3></div>' +
       '<div id="railTrending"><div class="skeleton sk-line" style="width:70%"></div><div class="skeleton sk-line" style="width:50%"></div></div>' +
     '</div>';
 }
@@ -135,26 +162,27 @@ function loadRail(){
     var sEl = $('#railSuggestions');
     if (sEl) {
       var list = (sug && sug.data) || [];
-      var html = '<div class="flex-between mb-3"><h3 style="font-size:14px">People you may know</h3></div>';
+      var html = '<div class="rail-section-head"><h3>Grow your circle</h3><a href="#/network">View all</a></div>';
       if (list.length) {
         list.forEach(function(p){
-          html += '<div class="flex gap-3" style="padding:8px 0;border-bottom:1px solid var(--border)">' +
+          html += '<div class="rail-person">' +
             avatar(p.photo, p.name, '40') +
-            '<div style="flex:1;min-width:0">' +
-              '<div class="ellipsis" style="font-weight:600;font-size:13px">' + esc(p.name) + (p.verified ? ' ' + verifiedBadge() : '') + '</div>' +
+            '<div class="rail-person-info">' +
+              '<a href="#/user/' + esc(p.userId) + '" class="rail-person-name ellipsis">' + esc(p.name) + (p.verified ? ' ' + verifiedBadge() : '') + '</a>' +
               '<div class="ellipsis small muted">' + esc(p.headline||p.city||'') + '</div>' +
             '</div>' +
-            '<button class="btn btn-outline btn-xs" data-connect="' + esc(p.userId) + '">Connect</button>' +
+            '<button class="rail-connect" data-connect="' + esc(p.userId) + '" aria-label="Connect with ' + esc(p.name) + '" title="Connect">' + svgIcon('plus') + '</button>' +
           '</div>';
         });
-      } else { html += '<div class="small muted">No suggestions yet.</div>'; }
+      } else { html += '<p class="rail-empty">Your network starts with a hello.</p><a class="rail-text-link" href="#/network">Find people to connect with &rarr;</a>'; }
       sEl.innerHTML = html;
     }
     var tEl = $('#railTrending');
-    if (tEl && trend && trend.data && trend.data.skills) {
-      tEl.innerHTML = trend.data.skills.map(function(s){
-        return '<span class="chip" style="margin:0 4px 6px 0">' + esc(s.name) + ' <span class="muted">' + s.count + '</span></span>';
-      }).join('');
+    if (tEl) {
+      var skills = trend && trend.data && trend.data.skills || [];
+      tEl.innerHTML = skills.length ? skills.map(function(s){
+        return '<span class="rail-skill">' + esc(s.name) + ' <span class="muted">' + s.count + '</span></span>';
+      }).join('') : '<p class="rail-empty">Skills shared by your community will appear here.</p>';
     }
   }).catch(function(){});
 }

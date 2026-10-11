@@ -6,6 +6,7 @@ import { $, $$, avatar, esc, toast, verifiedBadge } from './core.js';
 function renderNetwork(){
   shell('network', { wide:true });
   $('#main').innerHTML =
+    '<header class="page-introduction"><h1>My network</h1><p>Meet people, build connections and stay in touch.</p></header>' +
     '<div class="tabs">' +
       '<button class="tab active" data-net-tab="requests">Invitations</button>' +
       '<button class="tab" data-net-tab="connections">Connections</button>' +

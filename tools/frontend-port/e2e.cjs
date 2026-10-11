@@ -14,7 +14,9 @@ const consoleErrors = [];
 const badResponses = [];
 
 function codeFromLog(email) {
-  const text=fs.readFileSync(LOG,'utf8');
+  const log=fs.readFileSync(LOG);
+  const text=log.subarray(0,2).equals(Buffer.from([0xff,0xfe]))
+    ? log.subarray(2).toString('utf16le') : log.toString('utf8');
   const start=text.lastIndexOf('to='+email+' ');
   const block=text.slice(start,start+600);
   const match=block.match(/code is (\d{6})/);
@@ -67,7 +69,7 @@ async function goto(page, hash) { await page.evaluate(h => { location.hash = h; 
   });
 
   await step('register a new account', async () => {
-    await page.locator('#landing [data-goto="#/register"]').first().click();
+    await page.locator('#landing a[href="#/register"]').first().click();
     const f = page.locator('#regForm');
     await f.waitFor();
     await f.locator('[name=firstName]').fill(me.first);
@@ -101,7 +103,7 @@ async function goto(page, hash) { await page.evaluate(h => { location.hash = h; 
   });
 
   await step('composer card buttons do not double-open the composer', async () => {
-    await page.locator('#composeTrigger [data-new-post]').click();
+    await page.locator('#composeTrigger .composer-tools [data-new-post]').click();
     await page.waitForTimeout(400);
     const modals = await page.locator('#modalRoot .overlay').count();
     if (modals !== 1) throw new Error('expected 1 composer modal, got ' + modals);

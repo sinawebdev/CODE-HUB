@@ -7,21 +7,31 @@ function loadFeed(reset){
   if (reset) State.feed = { posts: [], offset: 0, hasMore: true, loading: false };
   if (State.feed.loading || !State.feed.hasMore) return;
   State.feed.loading = true;
+  var feedEl = $('#feed'); if (feedEl) feedEl.setAttribute('aria-busy','true');
+  var loadMore = $('#loadMore'); if (loadMore) { loadMore.disabled = true; loadMore.textContent = 'Loading updates...'; }
   api.getFeed({ offset: State.feed.offset, limit: 20 }).then(function(res){
     var posts = res.data.posts, hasMore = res.data.hasMore;
     State.feed.posts = State.feed.posts.concat(posts);
     State.feed.hasMore = hasMore;
     State.feed.offset += posts.length;
     renderFeedPosts();
-  }).catch(function(e){ toast(e.message || 'Failed to load feed', 'error'); }).then(function(){
+  }).catch(function(e){
+    toast(e.message || 'Failed to load feed', 'error');
+    if (!State.feed.posts.length && $('#feed')) {
+      $('#feed').innerHTML = '<div class="empty"><h3>Updates could not load</h3><p>Please try again to see what your network has shared.</p><button class="btn btn-secondary mt-4" id="feedRetry">Try again</button></div>';
+      $('#feedRetry').onclick = function(){ loadFeed(true); };
+    }
+    if (loadMore) { loadMore.disabled = false; loadMore.textContent = 'Load more posts'; }
+  }).then(function(){
     State.feed.loading = false;
+    if ($('#feed')) $('#feed').setAttribute('aria-busy','false');
   });
 }
 
 function renderFeedPosts(){
   var el = $('#feed'); if (!el) return;
   if (!State.feed.posts.length) {
-    el.innerHTML = '<div class="empty"><div class="empty-icon">' + svgIcon('home') + '</div><h3>Your feed is empty</h3><p>Connect with people and follow companies to see posts here.</p><button class="btn btn-primary mt-4" data-goto="#/network">Find people</button></div>';
+    el.innerHTML = '<div class="empty"><div class="empty-icon">' + svgIcon('network') + '</div><h3>Make your first connection</h3><p>Connect with people and follow companies. Their updates will bring this space to life.</p><button class="btn btn-primary mt-4" data-goto="#/network">Find your people</button></div>';
     return;
   }
   el.innerHTML = State.feed.posts.map(postCard).join('') + (State.feed.hasMore
@@ -39,12 +49,12 @@ function postCard(p){
       var m = p.media[0];
       mediaHtml = '<div class="post-media">' + (m.type==='video'
         ? '<video src="' + esc(m.url) + '" controls playsinline></video>'
-        : '<img src="' + esc(m.url) + '" alt="" loading="lazy">') + '</div>';
+        : '<img src="' + esc(m.url) + '" alt="' + esc(m.caption || 'Photo shared by ' + (author.name || 'a community member')) + '" loading="lazy">') + '</div>';
     } else {
       var slides = p.media.map(function(m){
         return '<div class="slide">' + (m.type==='video'
           ? '<video src="' + esc(m.url) + '" controls playsinline></video>'
-          : '<img src="' + esc(m.url) + '" alt="" loading="lazy">') + '</div>';
+          : '<img src="' + esc(m.url) + '" alt="' + esc(m.caption || 'Photo shared by ' + (author.name || 'a community member')) + '" loading="lazy">') + '</div>';
       }).join('');
       var dots = p.media.map(function(_,i){
         return '<span class="' + (i===0?'active':'') + '"></span>';
@@ -61,16 +71,16 @@ function postCard(p){
   }
   return '<article class="post" data-post-id="' + esc(p.id) + '">' +
     '<div class="post-head">' +
-      '<a href="#/user/' + esc(author.userId) + '">' + avatar(author.photo, author.name, '44') + '</a>' +
+      '<a href="#/user/' + esc(author.userId) + '" aria-label="View ' + esc(author.name || 'member') + ' profile">' + avatar(author.photo, author.name, '44') + '</a>' +
       '<div class="post-author">' +
         '<div class="post-author-name">' +
           '<a href="#/user/' + esc(author.userId) + '" style="color:inherit">' + esc(author.name) + '</a>' +
           (author.verified ? verifiedBadge() : '') +
         '</div>' +
-        '<div class="post-author-sub">' + esc(author.headline||'') + ' · ' + esc(timeAgo(p.createdAt)) + '</div>' +
+        '<div class="post-author-sub">' + (author.headline ? esc(author.headline) + ' &middot; ' : '') + '<time datetime="' + esc(p.createdAt) + '">' + esc(timeAgo(p.createdAt)) + '</time></div>' +
         (p.company ? '<div class="small" style="color:var(--brand);font-weight:600;margin-top:2px">' + esc(p.company.name) + (p.company.verified ? ' ' + verifiedBadge() : '') + '</div>' : '') +
       '</div>' +
-      '<button class="icon-btn" data-post-menu="' + esc(p.id) + '" style="width:32px;height:32px">' +
+      '<button class="icon-btn" data-post-menu="' + esc(p.id) + '" aria-label="Post options" aria-haspopup="menu" aria-expanded="false">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>' +
       '</button>' +
     '</div>' +
@@ -84,11 +94,11 @@ function postCard(p){
       (p.viewCount>0 ? '<span style="margin-left:auto">' + p.viewCount + ' views</span>' : '') +
     '</div>' +
     '<div class="post-actions">' +
-      '<button class="post-action ' + (p.liked?'liked':'') + '" data-like="' + esc(p.id) + '">' +
+      '<button class="post-action ' + (p.liked?'liked':'') + '" data-like="' + esc(p.id) + '" aria-pressed="' + !!p.liked + '">' +
         '<svg viewBox="0 0 24 24" fill="' + (p.liked?'currentColor':'none') + '" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>' +
         '<span>Like</span>' +
       '</button>' +
-      '<button class="post-action" data-comment-toggle="' + esc(p.id) + '">' +
+      '<button class="post-action" data-comment-toggle="' + esc(p.id) + '" aria-expanded="false">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' +
         '<span>Comment</span>' +
       '</button>' +
@@ -96,7 +106,7 @@ function postCard(p){
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>' +
         '<span>Share</span>' +
       '</button>' +
-      '<button class="post-action ' + (p.saved?'saved':'') + '" data-save="' + esc(p.id) + '">' +
+      '<button class="post-action ' + (p.saved?'saved':'') + '" data-save="' + esc(p.id) + '" aria-pressed="' + !!p.saved + '">' +
         '<svg viewBox="0 0 24 24" fill="' + (p.saved?'currentColor':'none') + '" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>' +
         '<span>Save</span>' +
       '</button>' +
@@ -117,19 +127,23 @@ function bindCarousels(){
   });
 }
 
+function carouselMotion(event){
+  return event.detail === 0 || window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
 document.addEventListener('click', function(e){
   var prev = e.target.closest('[data-car-prev]');
   if (prev) {
     var id = prev.getAttribute('data-car-prev');
     var car = document.querySelector('[data-carousel="' + id + '"]');
-    if (car) car.scrollBy({ left: -car.clientWidth, behavior: 'smooth' });
+    if (car) car.scrollBy({ left: -car.clientWidth, behavior: carouselMotion(e) });
     return;
   }
   var next = e.target.closest('[data-car-next]');
   if (next) {
     var id2 = next.getAttribute('data-car-next');
     var car2 = document.querySelector('[data-carousel="' + id2 + '"]');
-    if (car2) car2.scrollBy({ left: car2.clientWidth, behavior: 'smooth' });
+    if (car2) car2.scrollBy({ left: car2.clientWidth, behavior: carouselMotion(e) });
     return;
   }
   var likeBtn = e.target.closest('[data-like]');
@@ -141,6 +155,7 @@ document.addEventListener('click', function(e){
       for (var i=0;i<State.feed.posts.length;i++) { if (State.feed.posts[i].id===pid) { p = State.feed.posts[i]; break; } }
       if (p) { p.liked = res.data.liked; p.likeCount = res.data.count; }
       likeBtn.classList.toggle('liked', res.data.liked);
+      likeBtn.setAttribute('aria-pressed', String(!!res.data.liked));
       var svg = likeBtn.querySelector('svg'); if (svg) svg.setAttribute('fill', res.data.liked?'currentColor':'none');
       var root = document.querySelector('[data-post-id="' + pid + '"]');
       if (root) {
@@ -162,6 +177,7 @@ document.addEventListener('click', function(e){
     var isSaved = saveBtn.classList.contains('saved');
     api.savePost(sid, !isSaved).then(function(res){
       saveBtn.classList.toggle('saved', res.data.saved);
+      saveBtn.setAttribute('aria-pressed', String(!!res.data.saved));
       var svg = saveBtn.querySelector('svg'); if (svg) svg.setAttribute('fill', res.data.saved?'currentColor':'none');
       for (var i=0;i<State.feed.posts.length;i++) { if (State.feed.posts[i].id===sid) { State.feed.posts[i].saved = res.data.saved; break; } }
       toast(res.data.saved ? 'Post saved' : 'Removed from saved');
@@ -188,8 +204,10 @@ document.addEventListener('click', function(e){
 function toggleComments(postId){
   var box = document.querySelector('[data-comments="' + postId + '"]');
   if (!box) return;
-  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
+  var toggle = document.querySelector('[data-comment-toggle="' + postId + '"]');
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); if (toggle) toggle.setAttribute('aria-expanded','false'); return; }
   box.classList.remove('hidden');
+  if (toggle) toggle.setAttribute('aria-expanded','true');
   box.innerHTML = '<div class="center-loader"><span class="spinner dark"></span></div>';
   api.getComments(postId).then(function(res){
     var comments = res.data || [];
@@ -203,7 +221,7 @@ function toggleComments(postId){
     html += '</div>' +
       '<div class="flex gap-2 mt-3">' +
         avatar(State.profilePhoto, State.user.FirstName, '32') +
-        '<input class="input" placeholder="Write a comment..." data-comment-input="' + esc(postId) + '">' +
+        '<input class="input" placeholder="Write a comment..." aria-label="Write a comment" data-comment-input="' + esc(postId) + '">' +
         '<button class="btn btn-primary btn-sm" data-comment-submit="' + esc(postId) + '">Post</button>' +
       '</div>' +
     '</div>';
@@ -270,22 +288,36 @@ document.addEventListener('click', function(e){
 });
 
 function openPostMenu(postId, anchor){
-  var existing = document.querySelector('.dropdown.post-menu'); if (existing) existing.remove();
+  var existing = document.querySelector('.dropdown.post-menu'); if (existing) { if (existing._close) existing._close(); else existing.remove(); }
   var p = null;
   for (var i=0;i<State.feed.posts.length;i++) { if (State.feed.posts[i].id===postId) { p = State.feed.posts[i]; break; } }
   var isMine = p && p.isMine;
   var dd = document.createElement('div');
   dd.className = 'dropdown post-menu';
+  dd.setAttribute('role','menu');
+  dd.setAttribute('aria-label','Post options');
+  anchor.setAttribute('aria-expanded','true');
   dd.innerHTML = '<button class="dropdown-item" data-act="copy">Copy link</button>' +
     (isMine ? '<button class="dropdown-item" data-act="edit">Edit post</button>' +
       '<button class="dropdown-item danger" data-act="delete">Delete post</button>' : '') +
     '<button class="dropdown-item danger" data-act="report">Report</button>';
   document.body.appendChild(dd);
+  dd.querySelectorAll('button').forEach(function(button){ button.setAttribute('role','menuitem'); });
   var rect = anchor.getBoundingClientRect();
   dd.style.top = (rect.bottom + window.scrollY + 6) + 'px';
   dd.style.left = Math.max(8, rect.right - 200) + 'px';
-  var close = function(){ dd.remove(); };
-  setTimeout(function(){ document.addEventListener('click', close, {once:true}); }, 0);
+  var close = function(){ dd.remove(); anchor.setAttribute('aria-expanded','false'); document.removeEventListener('click', close); };
+  dd._close = close;
+  dd.querySelector('button').focus();
+  dd.addEventListener('keydown', function(e){
+    var buttons = Array.from(dd.querySelectorAll('button'));
+    var index = buttons.indexOf(document.activeElement);
+    if (e.key === 'Escape') { e.preventDefault(); close(); anchor.focus(); }
+    else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault(); buttons[(index + (e.key === 'ArrowDown' ? 1 : buttons.length - 1)) % buttons.length].focus();
+    } else if (e.key === 'Tab') { anchor.focus(); close(); }
+  });
+  setTimeout(function(){ if (dd.isConnected) document.addEventListener('click', close, {once:true}); }, 0);
   dd.addEventListener('click', function(ev){
     var actEl = ev.target.closest('[data-act]');
     var act = actEl ? actEl.getAttribute('data-act') : null;
@@ -330,7 +362,7 @@ function openComposer(){
           '<div class="small muted">' + esc(State.user.ProfessionalTitle || '') + '</div>' +
         '</div>' +
       '</div>' +
-      '<textarea class="textarea" id="composerText" rows="5" placeholder="Share an update, opportunity or idea..."></textarea>' +
+      '<label class="composer-text-label" for="composerText">Share with your network</label><textarea class="textarea" id="composerText" rows="5" placeholder="Share an update, opportunity or idea..."></textarea>' +
       '<div id="composerMedia" class="mt-3"></div>' +
       '<div class="flex gap-2 mt-3" style="flex-wrap:wrap">' +
         '<label class="btn btn-ghost btn-sm" style="cursor:pointer">' +

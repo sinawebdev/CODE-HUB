@@ -6,10 +6,11 @@ import { $, State, avatar, closeAllModals, debounce, esc, openModal, timeAgo, to
 function renderMessages(conversationId){
   shell('messages', { wide:true, noRail:true });
   $('#main').innerHTML =
+    '<header class="page-introduction"><h1>Messages</h1><p>Good conversations start with a connection.</p></header>' +
     '<div class="chat-layout">' +
       '<div class="chat-list" id="chatList">' +
         '<div class="chat-list-head"><div class="flex-between"><h3 style="font-size:15px">Messages</h3>' +
-          '<button class="icon-btn" id="newChatBtn" style="width:32px;height:32px">' + svgIcon('plus') + '</button></div></div>' +
+          '<button class="icon-btn" id="newChatBtn" aria-label="Start a conversation" style="width:32px;height:32px">' + svgIcon('plus') + '</button></div></div>' +
         '<div id="chatListItems"><div class="center-loader"><span class="spinner dark"></span></div></div>' +
       '</div>' +
       '<div class="chat-panel" id="chatPanel">' +

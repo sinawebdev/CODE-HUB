@@ -1,6 +1,7 @@
 // Ported from the original KoforLink demo; HTTP transport is in api.js.
 import * as api from './api.js';
-import { $, $$, State, closeAllModals, esc, hideBoot, navigate, openModal, toast } from './core.js';
+import { authDestination } from './job-search-intent.js';
+import { $, $$, State, closeAllModals, esc, hideBoot, labelFields, navigate, openModal, toast } from './core.js';
 
 function showLanding(){
   hideBoot();
@@ -32,6 +33,7 @@ function renderLogin(){
       '<button type="submit" class="btn btn-primary btn-block btn-lg" id="loginBtn">Sign In</button>' +
     '</form>' +
     '<div class="auth-footer">New to KoforLink? <a href="#/register">Create an account</a></div>';
+  labelFields($('#authCard'));
   $('#loginForm').onsubmit = function(ev){
     ev.preventDefault();
     var fd = new FormData(ev.target);
@@ -46,7 +48,7 @@ function renderLogin(){
       if (State.user && !State.emailVerified) {
         navigate('#/verify-email');
       } else {
-        navigate('#/');
+        navigate(authDestination());
       }
     }).catch(function(err){
       toast(err.message || 'Sign in failed', 'error');
@@ -66,15 +68,15 @@ function renderRegister(){
     '<div class="auth-logo">' +
       '<div class="brand-mark">KL</div>' +
       '<h1>Join KoforLink</h1>' +
-      '<p>Create your free professional profile in under a minute.</p>' +
+      '<p>Start with your details. Your next connection starts here.</p>' +
     '</div>' +
     '<form id="regForm">' +
       '<div class="row">' +
-        '<div class="field"><label>First name</label><input class="input" name="firstName" required></div>' +
-        '<div class="field"><label>Last name</label><input class="input" name="lastName" required></div>' +
+        '<div class="field"><label>First name</label><input class="input" name="firstName" required autocomplete="given-name"></div>' +
+        '<div class="field"><label>Last name</label><input class="input" name="lastName" required autocomplete="family-name"></div>' +
       '</div>' +
       '<div class="field"><label>Email</label><input class="input" type="email" name="email" required autocomplete="email"></div>' +
-      '<div class="field"><label>Phone</label><input class="input" name="phone" placeholder="+233 ..."></div>' +
+      '<div class="field"><label>Phone</label><input class="input" name="phone" type="tel" autocomplete="tel" placeholder="+233 ..."></div>' +
       '<div class="row">' +
         '<div class="field"><label>City</label><input class="input" name="city" value="Koforidua"></div>' +
         '<div class="field"><label>Professional title</label><input class="input" name="professionalTitle" placeholder="e.g. Software Engineer"></div>' +
@@ -94,6 +96,7 @@ function renderRegister(){
       '<button type="submit" class="btn btn-primary btn-block btn-lg" id="regBtn">Create account</button>' +
     '</form>' +
     '<div class="auth-footer">Already have an account? <a href="#/login">Sign in</a></div>';
+  labelFields($('#authCard'));
   $('#regForm').onsubmit = function(ev){
     ev.preventDefault();
     var fd = new FormData(ev.target);
@@ -129,7 +132,7 @@ function renderVerifyEmail(){
 
   $('#authCard').innerHTML =
     '<div class="auth-logo">' +
-      '<div class="brand-mark" style="background:linear-gradient(135deg,#0E7C4A,#F2B705)">' +
+      '<div class="brand-mark">' +
         '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#fff">' +
           '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg>' +
       '</div>' +
@@ -203,7 +206,7 @@ function renderVerifyEmail(){
       toast('Email verified successfully.');
       return bootstrap();
     }).then(function(){
-      navigate('#/');
+      navigate(authDestination());
     }).catch(function(err){
       btn.disabled = false; btn.textContent = 'Verify email';
       setError(err.message || 'Verification failed');
@@ -236,7 +239,7 @@ function renderVerifyEmail(){
     openModal({
       title:'Change email', size:'sm',
       body:'<p class="small muted mb-3">Update the email address for this account. A new code will be sent to the new address.</p>' +
-        '<input class="input" id="newEmail" type="email" placeholder="you@example.com" value="' + esc(email) + '">',
+        '<input class="input" id="newEmail" aria-label="New email address" type="email" placeholder="you@example.com" value="' + esc(email) + '">',
       footer:'<button class="btn btn-ghost" data-close>Cancel</button>' +
         '<button class="btn btn-primary" id="saveNewEmail">Update email</button>'
     });
@@ -290,7 +293,7 @@ function bootstrap(){
 
 function openPasswordResetModal(){
   openModal({title:'Reset password',size:'sm',
-    body:'<p class="muted small mb-3">Enter your email address and we will send a reset code.</p><input id="resetEmail" class="input" type="email" placeholder="you@example.com">',
+    body:'<p class="muted small mb-3">Enter your email address and we will send a reset code.</p><input id="resetEmail" class="input" aria-label="Email address" type="email" placeholder="you@example.com">',
     footer:'<button class="btn btn-ghost" data-close>Cancel</button><button class="btn btn-primary" id="resetBtn">Send code</button>'});
   $('#resetBtn').onclick = async function(){
     var email=$('#resetEmail').value.trim(), btn=this;

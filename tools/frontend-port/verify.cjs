@@ -49,7 +49,7 @@ const server=http.createServer((req,res)=>{const target=path.resolve('frontend',
   if(!document.querySelector('#resetCode'))throw Error('Reset code step absent');document.querySelector('#resetCode').value='123456';document.querySelector('#resetPassword').value='password123';document.querySelector('#resetConfirm').click();await settle();
   if(writes.length!==2||!writes[1].pathname.endsWith('/password-reset/confirm'))throw Error('Reset confirmation absent');
   core.State.user={UserID:'USR-test',FirstName:'Test',LastName:'Member',FullName:'Test Member',Role:'Professional'};core.State.emailVerified=true;
-  home.renderHome();document.querySelector('#composeTrigger [data-new-post]').click();if(document.querySelectorAll('.overlay').length!==1)throw Error('Photo button opened duplicate composers');core.closeAllModals();
+  home.renderHome();document.querySelector('#composeTrigger .composer-tools [data-new-post]').click();if(document.querySelectorAll('.overlay').length!==1)throw Error('Photo button expected one composer, found '+document.querySelectorAll('.overlay').length+' ('+Array.from(document.querySelectorAll('.modal-head h2')).map(e=>e.textContent).join(',')+')');core.closeAllModals();
   document.querySelector('#composeTrigger [data-goto="#/jobs"]').click();if(document.querySelectorAll('.overlay').length)throw Error('Job button opened composer');await settle();
   document.querySelector('#main').innerHTML='<div id="chatScroll"><div class="empty">No messages yet</div></div>';core.State.currentChat='CON-test';messages.pollMessages();await settle();messages.pollMessages();await settle();
   if(document.querySelectorAll('#chatScroll [data-msg]').length!==1||document.querySelector('#chatScroll .empty'))throw Error('Polling dedupe or placeholder failed');

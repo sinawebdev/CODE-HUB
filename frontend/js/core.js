@@ -121,11 +121,48 @@ function toast(msg, type){
   setTimeout(function(){ el.style.animation='toastIn .3s reverse'; setTimeout(function(){ el.remove(); }, 280); }, 3600);
 }
 
+var fieldSequence = 0, modalSequence = 0, keyboardInput = false;
+var modalBackground = [], modalOverflow = '';
+document.addEventListener('keydown', function(){ keyboardInput = true; });
+document.addEventListener('pointerdown', function(){ keyboardInput = false; });
+
+function syncModalBackground(){
+  var root = $('#modalRoot');
+  if (root.children.length) {
+    if (!modalBackground.length) {
+      modalOverflow = document.body.style.overflow;
+      Array.from(document.body.children).forEach(function(el){
+        if (el === root || el.id === 'toasts' || ['SCRIPT','STYLE','LINK'].includes(el.tagName)) return;
+        modalBackground.push({ element:el, inert:el.inert });
+        el.inert = true;
+      });
+      document.body.style.overflow = 'hidden';
+    }
+    Array.from(root.children).forEach(function(el){ el.inert = el !== root.lastElementChild; });
+  } else {
+    modalBackground.forEach(function(saved){ saved.element.inert = saved.inert; });
+    modalBackground = [];
+    document.body.style.overflow = modalOverflow;
+  }
+}
+
+function labelFields(root){
+  $$('.field', root).forEach(function(field){
+    var label = $('label', field), control = $('input,select,textarea', field);
+    if (!label || !control || label.htmlFor) return;
+    if (!control.id) control.id = 'field-' + (++fieldSequence);
+    label.htmlFor = control.id;
+  });
+}
+
 function openModal(opts){
   opts = opts || {};
   var title = opts.title, body = opts.body, footer = opts.footer, size = opts.size || '';
   var wrap = document.createElement('div');
   wrap.className = 'overlay';
+  wrap._returnFocus = document.activeElement;
+  wrap.dataset.keyboard = String(keyboardInput);
+  wrap.tabIndex = -1;
   wrap.setAttribute('role','dialog');
   wrap.setAttribute('aria-modal','true');
   wrap.innerHTML =
@@ -142,28 +179,51 @@ function openModal(opts){
     if (btn) { closeModal(wrap); return; }
   });
   $('#modalRoot').appendChild(wrap);
-  // ESC closes the top-most modal (but not while a story viewer is open).
-  if (!wrap._escBound) {
-    wrap._escBound = true;
-    document.addEventListener('keydown', function onEsc(e){
-      if (e.key === 'Escape') {
-        if (document.querySelector('.story-viewer')) return;
-        if (document.body.contains(wrap)) closeModal(wrap);
-        document.removeEventListener('keydown', onEsc);
-      }
-    });
+  syncModalBackground();
+  var heading = $('.modal-head h2', wrap);
+  if (heading) {
+    heading.id = 'modal-title-' + (++modalSequence);
+    wrap.setAttribute('aria-labelledby', heading.id);
+  } else {
+    wrap.setAttribute('aria-label', opts.label || 'KoforLink dialog');
   }
+  labelFields(wrap);
+  var focusable = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]';
+  wrap.addEventListener('keydown', function(e){
+    if (wrap !== $('#modalRoot').lastElementChild || document.querySelector('.story-viewer')) return;
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeModal(wrap); return; }
+    if (e.key !== 'Tab') return;
+    var controls = $$(focusable, wrap).filter(function(el){ return el.getClientRects().length; });
+    var first = controls[0], last = controls[controls.length-1];
+    if (!first) { e.preventDefault(); wrap.focus(); return; }
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === wrap)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  requestAnimationFrame(function(){
+    if (!wrap.isConnected || wrap !== $('#modalRoot').lastElementChild) return;
+    var firstInput = $('input:not([type=hidden]),textarea,select', wrap);
+    (firstInput || $(focusable, wrap) || wrap).focus();
+  });
   return wrap;
 }
 
 function closeModal(el){
   if (el && el.parentNode) {
-    try { el.style.animation = 'fadeIn .2s reverse'; } catch (e) {}
-    setTimeout(function(){ if (el.parentNode) el.remove(); }, 60);
+    var restore = el._returnFocus;
+    el.remove();
+    syncModalBackground();
+    if (restore && restore.isConnected) restore.focus({ preventScroll:true });
   }
 }
 
-function closeAllModals(){ var r = document.getElementById('modalRoot'); if (r) r.innerHTML = ''; }
+function closeAllModals(){
+  var r = document.getElementById('modalRoot');
+  if (!r) return;
+  var first = r.firstElementChild, restore = first && first._returnFocus;
+  r.innerHTML = '';
+  syncModalBackground();
+  if (restore && restore.isConnected) restore.focus({ preventScroll:true });
+}
 
 function applyTheme(){
   var t = State.theme;
@@ -185,4 +245,4 @@ function navigate(hash){ if(location.hash === hash) rerender(); else location.ha
 function rerender(){ window.dispatchEvent(new Event('hashchange')); }
 
 
-export { safeStorageGet, safeStorageSet, safeStorageRemove, __kfShowError, hideBoot, State, $, $$, esc, initials, avatar, timeAgo, fmtDate, debounce, verifiedBadge, toast, openModal, closeModal, closeAllModals, applyTheme, setTheme, navigate, rerender };
+export { safeStorageGet, safeStorageSet, safeStorageRemove, __kfShowError, hideBoot, State, $, $$, esc, initials, avatar, timeAgo, fmtDate, debounce, verifiedBadge, toast, labelFields, openModal, closeModal, closeAllModals, applyTheme, setTheme, navigate, rerender };

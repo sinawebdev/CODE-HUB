@@ -5,6 +5,15 @@ import { openComposer } from './feed.js';
 import { bootstrap, renderLogin, renderRegister, renderVerifyEmail, showLanding } from './auth.js';
 import { router } from './router.js';
 import { refreshCounts } from './layout.js';
+import { rememberJobSearch } from './job-search-intent.js';
+
+document.addEventListener('submit', function(e){
+  if (e.target.id !== 'landingJobSearch') return;
+  e.preventDefault();
+  var fields = new FormData(e.target);
+  rememberJobSearch(fields.get('query'), fields.get('city'));
+  navigate('#/jobs');
+});
 
 window.addEventListener('kf:signed-out', function(){
   if(State.chatPoll) clearInterval(State.chatPoll);
@@ -14,6 +23,17 @@ window.addEventListener('kf:signed-out', function(){
 window.addEventListener('kf:verify-email', function(){ navigate('#/verify-email'); });
 
 document.addEventListener('click', function(e){
+  var section = e.target.closest('[data-section]');
+  if (section) {
+    e.preventDefault();
+    var targetSection = document.getElementById(section.getAttribute('data-section'));
+    if (targetSection) {
+      targetSection.setAttribute('tabindex', '-1');
+      targetSection.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      targetSection.focus({ preventScroll: true });
+    }
+    return;
+  }
   var g = e.target.closest('[data-goto]');
   if (g) {
     e.preventDefault();
