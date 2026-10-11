@@ -65,7 +65,11 @@ The empty PostgreSQL 17 database **koforlink_app** has been created at `postgres
 
 `deploy/publish_alwaysdata.py` performs preparation through SSH. It requires a fingerprint read from the authenticated hosting panel, checks that identity before sending credentials, retains existing private configuration, and refuses to discard server source changes. The local plan, password input, dependency folder and downloaded administrator details belong in the Git-ignored `.validation` folder. They must never be committed. A separate database password can be supplied if it differs from the existing hosting password.
 
-SSH preparation checks database schema/revision, media writability and SMTP TLS connectivity. It does **not** send email or switch the public site. Actual email delivery, public-site switching, idle behavior and hosted-browser acceptance remain pending. The existing SSH password is needed before source upload and migration can proceed.
+SSH authentication now succeeds, and source commit `8d3c91a` has been uploaded to `/home/koforlink/koforlink`. Python 3.12 and the backend packages are installed. The installed runtime passed **104 isolated backend tests** using in-memory SQLite, an empty SMTP host and explicit test URL/pool defaults; these tests did not alter PostgreSQL or send email. Four initial assertions used production URL/pool settings, and passed after the test environment was fully isolated.
+
+PostgreSQL rejected authentication using the SSH password. Its separate database-user password is needed before migration can proceed. Supply it with `--database-password-file`; this explicitly replaces only `DATABASE_URL` in an existing private `.env` and retains the signing secret and other settings.
+
+SSH preparation checks database schema/revision, media writability and SMTP TLS connectivity. It does **not** send email or switch the public site. Migrations, actual email delivery, public-site switching, idle behavior and hosted-browser acceptance remain pending. The Chrome administration connection stopped responding; the in-app browser is waiting for the account owner's sign-in before site configuration can continue.
 
 ## Prepared deployment for a continuously running Linux VM
 

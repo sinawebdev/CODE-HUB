@@ -53,15 +53,12 @@ def execute(client, command, secrets=(), payload=None, timeout=600):
 
 
 CONFIGURE = r'''
-import json, os, secrets, sys
+import json, os, secrets, sys, tempfile
 from pathlib import Path
 from urllib.parse import quote
 plan = json.load(sys.stdin)
 root = Path(plan['root'])
 env = root / 'backend/.env'
-if env.exists():
-    print('Existing private backend/.env retained.')
-    raise SystemExit(0)
 password = quote(plan['database_password'], safe='')
 url = 'postgresql+psycopg://' + quote(plan['database_user'], safe='') + ':' + password + '@' + plan['database_host'] + ':5432/' + plan['database'] + '?sslmode=require'
 values = {
@@ -73,6 +70,25 @@ values = {
 }
 def quoted(value):
     return '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('\n','\\n').replace('\r','\\r') + '"'
+if env.exists():
+    if plan.get('replace_database_password'):
+        lines = env.read_text().splitlines(keepends=True)
+        matches = [index for index, line in enumerate(lines) if line.startswith('DATABASE_URL=')]
+        assert len(matches) == 1, 'Expected one DATABASE_URL in private configuration'
+        lines[matches[0]] = 'DATABASE_URL=' + quoted(url) + '\n'
+        descriptor, temporary = tempfile.mkstemp(prefix='.env-', dir=env.parent)
+        try:
+            with os.fdopen(descriptor, 'w') as handle:
+                handle.write(''.join(lines))
+            os.chmod(temporary, 0o600)
+            os.replace(temporary, env)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
+        print('Database credential updated; all other private settings retained.')
+    else:
+        print('Existing private backend/.env retained.')
+    raise SystemExit(0)
 with os.fdopen(os.open(env, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600), 'w') as handle:
     handle.write(''.join(key + '=' + quoted(value) + '\n' for key,value in values.items()))
 Path(values['MEDIA_ROOT']).mkdir(mode=0o700, exist_ok=True)
@@ -109,6 +125,10 @@ def read_password(path):
 
 
 def main():
+    # Remote installers emit Unicode progress glyphs even on a Windows console.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="replace")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path, required=True)
     parser.add_argument("--password-file", type=Path, required=True)
@@ -143,7 +163,8 @@ def main():
             "fi", "git rev-parse HEAD",
         ])
         execute(client, command, (password, database_password), timeout=180)
-        payload = dict(plan, database_password=database_password)
+        payload = dict(plan, database_password=database_password,
+                       replace_database_password=bool(args.database_password_file))
         execute(client, "PYTHON_VERSION=3.12 python -c " + q(CONFIGURE),
                 (password, database_password), json.dumps(payload))
         execute(client, f"cd {q(str(root))} && PYTHON_VERSION=3.12 ADMIN_EMAIL={q(plan['admin_email'])} sh deploy/alwaysdata-prepare.sh",
