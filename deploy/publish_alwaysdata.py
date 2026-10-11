@@ -100,6 +100,14 @@ print(json.dumps({'application_tables':tables,'smtp_tls_connection':True,'media_
 '''
 
 
+def read_password(path):
+    lines = [line for line in path.read_text(encoding="utf-8-sig").splitlines()
+             if line and line != "PASTE_EXISTING_HOSTING_PASSWORD_HERE"]
+    if len(lines) != 1:
+        raise RuntimeError("The private password file must contain one password line.")
+    return lines[0]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--plan", type=Path, required=True)
@@ -108,10 +116,8 @@ def main():
     parser.add_argument("--admin-output", type=Path, required=True)
     args = parser.parse_args()
     plan = json.loads(args.plan.read_text(encoding="utf-8"))
-    password = args.password_file.read_text(encoding="utf-8-sig").rstrip("\r\n")
-    if not password or password == "PASTE_EXISTING_HOSTING_PASSWORD_HERE":
-        raise RuntimeError("Existing hosting password is still needed in the private local file.")
-    database_password = args.database_password_file.read_text(encoding="utf-8-sig").rstrip("\r\n") if args.database_password_file else password
+    password = read_password(args.password_file)
+    database_password = read_password(args.database_password_file) if args.database_password_file else password
     root = PurePosixPath(plan["root"])
     if not root.is_absolute() or root.parent != PurePosixPath("/home") / plan["username"] or root.name != "koforlink":
         raise RuntimeError("The deployment directory must be /home/ACCOUNT/koforlink.")
