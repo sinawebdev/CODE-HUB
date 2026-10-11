@@ -1,6 +1,7 @@
 """All settings come from environment variables / .env. Nothing secret lives in code."""
 from pathlib import Path
 
+from pydantic import NonNegativeInt, PositiveInt
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -13,6 +14,10 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     environment: str = "development"
     database_url: str = "postgresql+psycopg://koforlink:koforlink@localhost:5432/koforlink"
+    # Optional direct/session connection for Alembic when runtime uses transaction pooling.
+    migration_database_url: str = ""
+    database_pool_size: PositiveInt = 5
+    database_max_overflow: NonNegativeInt = 0
     secret_key: str = "change-me"
 
     # Tokens: short-lived JWT access tokens + rotating refresh tokens stored in the database.

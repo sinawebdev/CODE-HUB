@@ -63,6 +63,7 @@ Create the schema, first administrator, and optional demo data:
 ```
 
 Open <http://localhost:8000> for the app and <http://localhost:8000/docs> for the API.
+For the team-owned hosted database, follow [Supabase setup](docs/supabase.md).
 Setup displays the first administrator's generated password once. Change it after
 signing in. `seed-demo` is optional and skips data already seeded; demo member
 `ama.mensah@demo.koforlink` uses `Demo@1234`.
@@ -82,6 +83,8 @@ Configuration comes from environment variables or `backend/.env`. Main options:
 | Setting | Purpose |
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection; defaults match Docker Compose |
+| `MIGRATION_DATABASE_URL` | Optional direct/session connection for Alembic |
+| `DATABASE_POOL_SIZE` / `DATABASE_MAX_OVERFLOW` | Connections per backend worker; defaults 5 / 0 |
 | `SECRET_KEY` | JWT and signed media links |
 | `ENVIRONMENT` | `development` by default; production requires a secret |
 | `MEDIA_ROOT` | Uploaded files, defaults to `backend/media` |
@@ -107,7 +110,7 @@ From `backend/`:
 ```
 
 Tests default to isolated in-memory SQLite. To test PostgreSQL, set
-`TEST_DATABASE_URL` to a **separate disposable database** before running pytest;
+`TEST_DATABASE_URL` to a **separate disposable local database ending in `_tests`** before running pytest;
 the test fixture creates and drops its schema. Never use the app database for it.
 
 The frontend verifier in `tools/frontend-port/verify.cjs` checks ES module imports,

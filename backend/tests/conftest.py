@@ -3,7 +3,7 @@
 Every test runs inside one outer transaction that is rolled back afterwards, so services can
 call commit() freely. Tests use in-memory SQLite by default; set TEST_DATABASE_URL to run the
 same suite against PostgreSQL, e.g.
-TEST_DATABASE_URL=postgresql+psycopg://koforlink:koforlink@localhost:5432/koforlink_test
+TEST_DATABASE_URL=postgresql+psycopg://koforlink:koforlink@localhost:5432/koforlink_tests
 """
 import itertools
 import os
@@ -13,6 +13,7 @@ os.environ.setdefault("SECRET_KEY", "test-only-secret-key-that-is-long-enough-fo
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
@@ -26,6 +27,12 @@ from app.modules import load_models
 load_models()
 
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", "sqlite://")
+test_url = make_url(TEST_DATABASE_URL)
+if test_url.get_backend_name() != "sqlite":
+    if not (test_url.database or "").endswith("_tests"):
+        raise RuntimeError("TEST_DATABASE_URL must name a disposable database ending in _tests.")
+    if (test_url.host or "").endswith((".supabase.co", ".pooler.supabase.com")):
+        raise RuntimeError("The destructive pytest fixture must not target a hosted Supabase project.")
 PASSWORD = "Password123!"
 PASSWORD_HASH = hash_password(PASSWORD)
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64

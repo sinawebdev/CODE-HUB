@@ -4,14 +4,15 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import DateTime, String, create_engine
+from sqlalchemy import DateTime, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 from sqlalchemy.types import TypeDecorator
 
 from app.core.config import settings
+from app.core.database_connection import make_database_engine
 from app.core.utils import new_id, utcnow
 
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+engine = make_database_engine(settings.database_url)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 

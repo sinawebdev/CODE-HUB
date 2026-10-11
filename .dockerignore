@@ -1,0 +1,9 @@
+.git
+.validation
+**/.env
+**/.env.*
+**/.venv
+**/__pycache__
+**/.pytest_cache
+backend/media
+**/node_modules
