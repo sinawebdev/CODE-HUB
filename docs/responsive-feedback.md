@@ -25,4 +25,4 @@ Local evidence is ignored by Git: `.validation/responsive-motion/review.json`, `
 
 ## Deployment
 
-The alwaysdata account has the free website `koforlink.alwaysdata.net`, PostgreSQL 17 at `postgresql-koforlink.alwaysdata.net`, an existing `koforlink` database user, SSH user and `koforlink@alwaysdata.net` mailbox. Readiness checks must create/migrate the app database, configure persistent media, prove email delivery, switch the default PHP site to the Python app, and verify the public site before reporting deployment complete.
+The alwaysdata account has the free website `koforlink.alwaysdata.net`, PostgreSQL 17 at `postgresql-koforlink.alwaysdata.net`, an existing `koforlink` database user, SSH user and `koforlink@alwaysdata.net` mailbox. The empty `koforlink_app` database has now been created. Its migrations still need to run. Readiness checks must configure persistent media, prove email delivery, switch the default PHP site to the Python app, and verify the public site before reporting deployment complete.

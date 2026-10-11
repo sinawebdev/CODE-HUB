@@ -42,7 +42,7 @@ python -m venv .venv
 .venv/bin/python -m pip install --no-cache-dir -r requirements.txt
 ```
 
-Configure a private `backend/.env` with the real database, random signing secret, `ENVIRONMENT=production`, `PUBLIC_BASE_URL=https://ACCOUNT.alwaysdata.net`, a persistent absolute `MEDIA_ROOT`, and working SMTP settings. SMTP compatibility must be checked; the app currently uses SMTP with optional STARTTLS, not implicit SMTP-over-SSL. Supabase remains pending. Using the host's own PostgreSQL would be a separate database choice, not a completed Supabase setup.
+Configure a private `backend/.env` with the real database, random signing secret, `ENVIRONMENT=production`, `PUBLIC_BASE_URL=https://ACCOUNT.alwaysdata.net`, a persistent absolute `MEDIA_ROOT`, and working SMTP settings. The provider documents [SMTP on port 587 with STARTTLS](https://help.alwaysdata.com/en/docs/emails/use-an-email-address/), which fits this app. It also documents that SMTP authentication is unnecessary for a service running on its own servers. Use the account's actual sender address; verify delivery before claiming email works. Supabase remains pending.
 
 Run Alembic and the read-only database check using the commands in [supabase.md](supabase.md), then create the first administrator. In Web > Sites, configure:
 
@@ -53,7 +53,19 @@ Run Alembic and the read-only database check using the commands in [supabase.md]
 - Advanced idle timeout: **0**.
 - Website address: the account's free `alwaysdata.net` address.
 
-The provider supplies `$IP` and `$PORT`. Verify resource use, assets, database-backed sign-in and writes, upload persistence, email delivery, and response after inactivity before accepting this deployment. No alwaysdata account has been created and no hosted behavior has been verified.
+The provider supplies `$IP` and `$PORT`. Verify resource use, assets, database-backed sign-in and writes, upload persistence, email delivery, and response after inactivity before accepting this deployment.
+
+### Current account preparation, 11 October 2026
+
+The existing **koforlink** account was verified on **Free** (1 GB disk, 256 MB RAM, 0.25 CPU). The existing site is `koforlink.alwaysdata.net` and still runs its default PHP configuration.
+
+The empty PostgreSQL 17 database **koforlink_app** has been created at `postgresql-koforlink.alwaysdata.net`, with the existing `koforlink` database user. Its 42 application tables have **not** yet been migrated. The existing SSH user is `koforlink` at `ssh-koforlink.alwaysdata.net`. The existing sender address is `koforlink@alwaysdata.net`.
+
+`deploy/alwaysdata-prepare.sh` installs the server, checks production configuration, runs migrations/readiness, and creates the first administrator without seeding public demo accounts. Initial administrator details go to private, Git-ignored `backend/.first-admin.txt`, not deployment output.
+
+`deploy/publish_alwaysdata.py` performs preparation through SSH. It requires a fingerprint read from the authenticated hosting panel, checks that identity before sending credentials, retains existing private configuration, and refuses to discard server source changes. The local plan, password input, dependency folder and downloaded administrator details belong in the Git-ignored `.validation` folder. They must never be committed. A separate database password can be supplied if it differs from the existing hosting password.
+
+SSH preparation checks database schema/revision, media writability and SMTP TLS connectivity. It does **not** send email or switch the public site. Actual email delivery, public-site switching, idle behavior and hosted-browser acceptance remain pending. The existing SSH password is needed before source upload and migration can proceed.
 
 ## Prepared deployment for a continuously running Linux VM
 
